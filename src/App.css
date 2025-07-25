@@ -1,0 +1,117 @@
+main{
+  min-height: 90vh;
+}
+header {
+  background-color: var(--bg-100) !important;
+}
+.dropdown-menu {
+  background-color: var(--bg-100) !important;
+  color: var(--text-100) !important;
+}
+
+.dropdown-item {
+  color: var(--text-100) !important;
+}
+.dropdown-item:hover {
+  background-color: var(--bg-200);
+  color: var(--text-100);
+}
+
+.nav-link {
+  color: var(--text-200);
+  transition: 0.2s ease-in-out;
+}
+.nav-link:hover {
+  color: var(--primary-100);
+}
+.nav-link.active {
+  font-weight: bold;
+  background-color: var(--bg-300);
+  color: var(--primary-100);
+  border-radius: 8px;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  background-color: var(--bg-200);
+  width: 240px;
+  transition: transform 0.3s ease-in-out;
+  z-index: 1000;
+}
+
+@media (max-width: 991px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    transform: translateX(100%);
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+.card {
+  background-color: var(--bg-100);
+  border: var(--bg-200) 1px solid;
+  box-shadow: var(--text-100-20) 0px 2px 8px 0px;
+  color: var(--text-100);
+}
+
+.dZdOzu,
+.kMgreK,
+.fBjZMk,
+.cocSnr {
+  background-color: var(--bg-100) !important;
+  color: var(--text-100) !important;
+}
+
+.bYAWFJ {
+  background-color: var(--bg-200) !important;
+  color: var(--text-200) !important;
+}
+
+.dlOXOQ:disabled {
+  color: var(--text-100-20) !important;
+  fill: var(--text-100-20) !important;
+}
+
+.dlOXOQ {
+  color: var(--text-100) !important;
+  fill: var(--text-100) !important;
+  transform: rotate(180deg);
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1050;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-100-50);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal {
+  background: var(--bg-100);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  max-width: 400px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  position: unset;
+  height: auto !important;
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+}
+
+.notfound{
+  min-height: 80vh;
+}

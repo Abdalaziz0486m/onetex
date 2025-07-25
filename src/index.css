@@ -1,0 +1,168 @@
+@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+:root {
+  direction: rtl;
+
+  /* Primary: Orange from logo */
+  --primary-100: #f58634;
+  --primary-200: #f79e5c;
+  --primary-300: #f9b784;
+
+  /* Accent: Navy from logo */
+  --accent-100: #3e4095;
+  --accent-200: #5759ad;
+
+  /* Text Colors */
+  --text-100: #401504;
+  --text-100-20: #40150433;
+  --text-200: #52554e;
+
+  /* Backgrounds */
+  --bg-100: #fdfdfd;
+  --bg-200: #f4f4f4;
+  --bg-300: #eaeaea;
+  --bg-100-50: rgba(253, 253, 253, 0.5);
+  --bg-300-10: rgba(234, 234, 234, 0.1);
+
+  /* Shadows */
+  --shadow-100: rgba(0, 0, 0, 0.05);
+  --shadow-200: rgba(0, 0, 0, 0.1);
+  --shadow-accent-100: rgba(245, 134, 52, 0.3); /* Orange shadow */
+  --shadow-accent-200: rgba(62, 64, 149, 0.25); /* Navy shadow */
+}
+
+[data-theme="dark"] {
+  --primary-100: #f58634;
+  --primary-200: #ff9d50;
+  --primary-300: #ffb273;
+
+  --accent-100: #3e4095;
+  --accent-200: #5c5fa3;
+
+  --text-100: #f5f5f5;
+  --text-100-20: #f5f5f533;
+  --text-200: #cccccc;
+
+  --bg-100: #1c1c25;
+  --bg-200: #2a2a36;
+  --bg-300: #383848;
+  --bg-100-50: rgba(28, 28, 37, 0.5);
+  --bg-300-10: rgba(56, 56, 72, 0.1);
+
+  --shadow-100: rgba(0, 0, 0, 0.3);
+  --shadow-200: rgba(0, 0, 0, 0.5);
+  --shadow-accent-100: rgba(245, 134, 52, 0.2);
+  --shadow-accent-200: rgba(62, 64, 149, 0.15);
+}
+
+body {
+  background-color: var(--bg-100);
+  color: var(--text-200);
+  font-family: "Tajawal", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-100);
+  font-weight: 700;
+}
+
+p {
+  color: var(--text-200);
+}
+
+button.btn-primary {
+  background-color: var(--primary-100) !important;
+  border: 1px solid var(--primary-100) !important;
+  color: var(--bg-100) !important;
+  font-weight: 700;
+}
+
+button.btn-primary:hover {
+  background-color: var(--primary-200) !important;
+}
+button.btn-primary:active {
+  background-color: var(--primary-200) !important;
+}
+button.btn-primary:focus-visible {
+  background-color: var(--primary-200) !important;
+}
+
+button.btn-outline-primary {
+  border: var(--primary-100) 1px solid;
+  color: var(--primary-100);
+}
+
+button.btn-outline-primary:hover {
+  background-color: var(--primary-100);
+  color: var(--bg-100);
+  border: var(--primary-100) 1px solid;
+}
+button.btn-outline-primary:active {
+  background-color: var(--primary-100);
+  color: var(--bg-100);
+  border: var(--primary-100) 1px solid;
+}
+button.btn-outline-primary:focus-visible {
+  background-color: var(--primary-100);
+  color: var(--bg-100);
+  border: var(--primary-100) 1px solid;
+}
+
+button.btn-secondary {
+  background-color: var(--accent-100);
+  color: var(--bg-100);
+  border: 1px solid var(--accent-100);
+}
+
+button.btn-secondary:hover {
+  background-color: var(--accent-200);
+}
+button.btn-secondary:active {
+  background-color: var(--accent-200);
+}
+button.btn-secondary:focus-visible {
+  background-color: var(--accent-200);
+}
+
+button.btn-outline-secondary {
+  border: 1px solid var(--accent-100);
+  color: var(--accent-100);
+}
+button.btn-outline-secondary:hover {
+  border: 1px solid var(--accent-100);
+  color: var(--bg-100);
+  background-color: var(--accent-100);
+}
+button.btn-outline-secondary:active {
+  border: 1px solid var(--accent-100) !important;
+  color: var(--bg-100) !important;
+  background-color: var(--accent-100) !important;
+}
+button.btn-outline-secondary:focus-visible {
+  border: 1px solid var(--accent-100) !important;
+  color: var(--bg-100) !important;
+  background-color: var(--accent-100) !important;
+}
+
+.shadow-sm {
+  box-shadow: 0 1px 3px var(--shadow-100);
+}
+.shadow-md {
+  box-shadow: 0 4px 8px var(--shadow-200);
+}
+.shadow-accent {
+  box-shadow: 0 0 10px var(--shadow-accent-100);
+}
+
+.border-end,
+.border-bottom,
+.border-start,
+.border-top {
+  border-color: var(--bg-300) !important;
+}
