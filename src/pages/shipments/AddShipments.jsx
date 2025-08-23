@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import axios from "axios";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bounce, toast, ToastContainer } from "react-toastify";
 
@@ -77,14 +78,47 @@ export default function AddShipments() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(form);
-    toast.info("تم حفظ الشحنة في الكونسول مؤقتا");
-    toast.success("تم انشاء الشحنة بنجاح");
-    setTimeout(() => {
-      navigate("/drivers");
-    }, 1500);
+
+    try {
+      // تجهيز body لإرسال العنوان بناءً على الاختيار
+      const payload = {
+        sender: {
+          name: form.sender.name,
+          phone: form.sender.phone,
+          address:
+            senderAddressType === "detailed"
+              ? { national: form.sender.address.national }
+              : { shortCode: form.sender.address.shortCode },
+        },
+        recipient: {
+          name: form.recipient.name,
+          phone: form.recipient.phone,
+          address:
+            recipientAddressType === "detailed"
+              ? { national: form.recipient.address.national }
+              : { shortCode: form.recipient.address.shortCode },
+        },
+        shipmentType: form.shipmentType,
+        ...(form.shipmentType === "Normal" && { weight: Number(form.weight) }), // الوزن فقط لو نوعها Normal
+      };
+
+      const res = await axios.post(
+        "https://shipping.onetex.com.sa/api/shipments",
+        payload
+      );
+
+      if (res.data.success) {
+        toast.success("تم إنشاء الشحنة بنجاح ✅");
+        setTimeout(() => navigate("/shipments"), 1500);
+      } else {
+        toast.error(res.data.message || "حدث خطأ أثناء إنشاء الشحنة");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("فشل في الاتصال بالخادم 🚨");
+    }
   };
 
   return (
@@ -105,7 +139,7 @@ export default function AddShipments() {
           <div className="col-md-6">
             <label>جوال المرسل</label>
             <input
-              type="text"
+              type="number"
               className="form-control"
               onChange={(e) => handleChange("sender", "phone", e.target.value)}
             />
@@ -195,7 +229,7 @@ export default function AddShipments() {
           <div className="col-md-6">
             <label>جوال المستلم</label>
             <input
-              type="text"
+              type="number"
               className="form-control"
               onChange={(e) =>
                 handleChange("recipient", "phone", e.target.value)

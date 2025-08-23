@@ -1,26 +1,31 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { Bounce, toast, ToastContainer } from "react-toastify";
+import axios from "axios";
 
 const cities = [
-  { value: "riyadh", label: "الرياض" },
-  { value: "jeddah", label: "جدة" },
-  { value: "dammam", label: "الدمام" },
+  { value: "riyadh", label: "الرياض", apiValue: "Riyadh" },
+  { value: "jeddah", label: "جدة", apiValue: "Jeddah" },
+  { value: "dammam", label: "الدمام", apiValue: "Dammam" },
 ];
 
 const areas = {
   riyadh: [
-    { value: "east", label: "الرياض الشرقية" },
-    { value: "west", label: "الرياض الغربية" },
+    { value: "east", label: "الرياض الشرقية", apiValue: "East Riyadh" },
+    { value: "west", label: "الرياض الغربية", apiValue: "West Riyadh" },
   ],
   jeddah: [
-    { value: "north", label: "جدة الشمالية" },
-    { value: "south", label: "جدة الجنوبية" },
+    { value: "north", label: "جدة الشمالية", apiValue: "North Jeddah" },
+    { value: "south", label: "جدة الجنوبية", apiValue: "South Jeddah" },
   ],
   dammam: [
-    { value: "center", label: "وسط الدمام" },
-    { value: "industrial", label: "المنطقة الصناعية" },
+    { value: "center", label: "وسط الدمام", apiValue: "Central Dammam" },
+    {
+      value: "industrial",
+      label: "المنطقة الصناعية",
+      apiValue: "Industrial Area",
+    },
   ],
 };
 
@@ -47,30 +52,38 @@ const AddDrivers = () => {
     setForm({ ...form, area: selected });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("بيانات السائق:", form);
-    toast.success("تم حفظ السائق بنجاح");
-    setTimeout(() => {
-      navigate("/drivers");
-    }, 1500);
 
-    // بعد الربط مع الباك اند
-    // axios.post("/api/drivers", { ...form }).then(() => navigate("/drivers"));
+    if (!form.city || !form.area) {
+      toast.error("يجب اختيار المدينة والحي");
+      return;
+    }
+
+    const payload = {
+      name: form.name,
+      phone: form.phone,
+      licenseNumber: form.licenseNumber,
+      region: form.city.apiValue, // ربط مع API
+      Area: form.area.apiValue, // ربط مع API
+    };
+
+    try {
+      await axios.post("https://shipping.onetex.com.sa/api/drivers", payload);
+      toast.success("تم حفظ السائق بنجاح");
+      setTimeout(() => {
+        navigate("/drivers");
+      }, 1500);
+    } catch (err) {
+      toast.error("فشل في حفظ السائق");
+    }
   };
 
   return (
     <div className="container mt-4">
       <ToastContainer
         position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
+        autoClose={3000}
         theme="light"
         transition={Bounce}
       />

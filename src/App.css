@@ -1,4 +1,4 @@
-main{
+main {
   min-height: 90vh;
 }
 header {
@@ -109,9 +109,70 @@ header {
 }
 
 .modal-backdrop.show {
-    opacity: 1;
+  opacity: 1;
 }
 
-.notfound{
+.notfound {
   min-height: 80vh;
+}
+
+.form-control {
+  background-color: var(--bg-100);
+  border: 1px solid var(--bg-200);
+  color: var(--text-100) !important;
+}
+
+.form-control:focus {
+  border-color: var(--primary-100);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  background-color: var(--bg-200);
+}
+
+.form-control:disabled {
+  background-color: var(--bg-200);
+  color: var(--text-100-20) !important;
+}
+
+.form-control:invalid {
+  background-color: var(--bg-200);
+  color: var(--text-100-20) !important;
+}
+
+.form-control::placeholder {
+  /* background-color: var(--bg-200) !important; */
+  color: var(--text-100-20) !important;
+}
+
+.input-group-text {
+  background-color: var(--bg-200);
+  border: 1px solid var(--bg-200);
+  color: var(--text-100) !important;
+}
+
+.form-select {
+  background-color: var(--bg-100);
+  border: 1px solid var(--bg-200);
+  color: var(--text-100) !important;
+}
+
+.address-card {
+  background-color: var(--bg-200);
+}
+
+.timeline-container {
+  background-color: var(--bg-100);
+  border: 1px solid var(--bg-200);
+  color: var(--text-100);
+}
+
+.bg-200 {
+  background-color: var(--bg-200);
+}
+
+.text-muted {
+  color: var(--text-100-20) !important;
+}
+
+.modal{
+  max-width: 100% !important;
 }

@@ -6,23 +6,27 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const cities = [
-  { value: "riyadh", label: "الرياض" },
-  { value: "jeddah", label: "جدة" },
-  { value: "dammam", label: "الدمام" },
+  { value: "riyadh", label: "الرياض", apiValue: "Riyadh" },
+  { value: "jeddah", label: "جدة", apiValue: "Jeddah" },
+  { value: "dammam", label: "الدمام", apiValue: "Dammam" },
 ];
 
 const areas = {
   riyadh: [
-    { value: "east", label: "الرياض الشرقية" },
-    { value: "west", label: "الرياض الغربية" },
+    { value: "east", label: "الرياض الشرقية", apiValue: "East Riyadh" },
+    { value: "west", label: "الرياض الغربية", apiValue: "West Riyadh" },
   ],
   jeddah: [
-    { value: "north", label: "جدة الشمالية" },
-    { value: "south", label: "جدة الجنوبية" },
+    { value: "north", label: "جدة الشمالية", apiValue: "North Jeddah" },
+    { value: "south", label: "جدة الجنوبية", apiValue: "South Jeddah" },
   ],
   dammam: [
-    { value: "center", label: "وسط الدمام" },
-    { value: "industrial", label: "المنطقة الصناعية" },
+    { value: "center", label: "وسط الدمام", apiValue: "Central Dammam" },
+    {
+      value: "industrial",
+      label: "المنطقة الصناعية",
+      apiValue: "Industrial Area",
+    },
   ],
 };
 
@@ -42,15 +46,17 @@ const EditDriver = () => {
     const fetchDriver = async () => {
       try {
         const { data } = await axios.get(
-          `${process.env.REACT_APP_API_BASE_URL}/drivers/${id}`
+          `https://shipping.onetex.com.sa/api/drivers/${id}`
         );
 
-        // حوّل القيم الجاية من API إلى فورم
-        const driver = data.driver;
-        const cityOption = cities.find((c) => c.value === driver.city);
-        const areaOption = areas[driver.city]?.find(
-          (a) => a.value === driver.area
-        );
+        const driver = data; // الـ API بيرجع السائق مباشرة
+
+        // نحاول نطابق region مع cityOptions
+        const cityOption = cities.find((c) => c.apiValue === driver.region);
+        // ثم نطابق Area مع خيارات المدينة
+        const areaOption = cityOption
+          ? areas[cityOption.value]?.find((a) => a.apiValue === driver.Area)
+          : null;
 
         setForm({
           name: driver.name,
@@ -87,12 +93,12 @@ const EditDriver = () => {
         name: form.name,
         phone: form.phone,
         licenseNumber: form.licenseNumber,
-        city: form.city?.value,
-        area: form.area?.value,
+        region: form.city?.apiValue,
+        Area: form.area?.apiValue,
       };
 
       await axios.put(
-        `${process.env.REACT_APP_API_BASE_URL}/drivers/${id}`,
+        `https://shipping.onetex.com.sa/api/drivers/${id}`,
         payload
       );
 

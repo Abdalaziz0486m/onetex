@@ -22,9 +22,15 @@ function App() {
           <Route index element={<Home />} />
           <Route path="users" element={<Users />} />
           <Route path="shipments" element={<Shipments />} />
-          <Route path="shipments/shipment/:id" element={<Shipment />} />
+          <Route
+            path="shipments/shipment/:trackingNumber"
+            element={<Shipment />}
+          />
           <Route path="shipments/add" element={<AddShipments />} />
-          <Route path="shipments/edit/:id" element={<EditShipments />} />
+          <Route
+            path="shipments/edit/:trackingNumber"
+            element={<EditShipments />}
+          />
           <Route path="drivers" element={<Drivers />} />
           <Route path="drivers/driver/:id" element={<Driver />} />
           <Route path="drivers/add" element={<AddDrivers />} />

@@ -1,159 +1,246 @@
-"use client";
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import * as React from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FaArrowLeft } from "react-icons/fa";
+import axios from "axios";
+
+// Import components
+import ShipmentStatusBadge from "../../components/shipment/ShipmentStatusBadge";
+import ShipmentInfoCard from "../../components/shipment/ShipmentInfoCard";
+import ShipmentTimeline from "../../components/shipment/ShipmentTimeline";
+import DriverCard from "../../components/shipment/DriverCard";
+import PersonCard from "../../components/shipment/PersonCard";
+import DriverAssignmentModal from "../../components/shipment/DriverAssignmentModal";
+import ShipmentActions from "../../components/shipment/ShipmentActions";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import ErrorMessage from "../../components/ui/ErrorMessage";
+
+const { useEffect, useState, useCallback } = React;
+
+const API_BASE_URL = "https://shipping.onetex.com.sa/api";
 
 export default function ShowShipment() {
-  const { id } = useParams();
-  const [shipment, setShipment] = useState(null);
+  const { trackingNumber } = useParams();
+  const navigate = useNavigate();
+  const [shipment, setShipment] = React.useState(null);
+  const [drivers, setDrivers] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [actionLoading, setActionLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [showDriverModal, setShowDriverModal] = React.useState(false);
+
+  // Fetch drivers from API
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/drivers`);
+      if (response.data.success) {
+        setDrivers(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+    }
+  }, []);
+
+  // Fetch shipment data from API
+  const fetchShipment = useCallback(async () => {
+    if (!trackingNumber) {
+      setLoading(false);
+      setError("رقم التتبع غير موجود");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/shipments/${trackingNumber}`
+      );
+
+      if (response.data && response.data.success) {
+        setShipment(response.data.data);
+        setError(null);
+      } else {
+        setError("لم يتم العثور على الشحنة");
+      }
+    } catch (error) {
+      console.error("Error fetching shipment:", error);
+
+      if (error.response?.status === 404) {
+        setError("الشحنة غير موجودة");
+      } else {
+        setError("خطأ في تحميل بيانات الشحنة");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [trackingNumber]);
 
   useEffect(() => {
-    const fakeData = {
-      id,
-      shipmentType: "عادي",
-      weight: 5,
-      status: "في الطريق",
-      path: [
-        { name: "تم إنشاء الشحنة", status: "done" },
-        { name: "قيد المعالجة", status: "done" },
-        { name: "في الطريق", status: "current" },
-        { name: "تم التسليم", status: "upcoming" },
-      ],
-      sender: {
-        name: "أحمد محمد",
-        phone: "0551234567",
-        address: {
-          national: {
-            buildingNumber: "123",
-            street: "شارع الملك",
-            district: "العليا",
-            city: "الرياض",
-            region: "الرياض",
-            postalCode: "12345",
-          },
-        },
-      },
-      recipient: {
-        name: "سعيد علي",
-        phone: "0569876543",
-        address: {
-          shortCode: "KSA-ABC123",
-        },
-      },
-    };
+    fetchShipment();
+    fetchDrivers();
+  }, [fetchShipment, fetchDrivers]);
 
-    setShipment(fakeData);
-  }, [id]);
-
-  if (!shipment) return <p>جاري تحميل البيانات...</p>;
-
-  const renderAddress = (address) => {
-    if (address.shortCode) {
-      return <p>كود مختصر: {address.shortCode}</p>;
-    } else if (address.national) {
-      const a = address.national;
-      return (
-        <ul className="list-unstyled">
-          <li>رقم المبنى: {a.buildingNumber}</li>
-          <li>الشارع: {a.street}</li>
-          <li>الحي: {a.district}</li>
-          <li>المدينة: {a.city}</li>
-          <li>المنطقة: {a.region}</li>
-          <li>الرمز البريدي: {a.postalCode}</li>
-        </ul>
+  // Handle assign driver
+  const handleAssignDriver = async (driverId) => {
+    setActionLoading(true);
+    try {
+      const response = await axios.patch(
+        `${API_BASE_URL}/shipments/${trackingNumber}/assign-driver`,
+        { driverId }
       );
+
+      if (response.data.success) {
+        toast.success("تم تعيين السائق بنجاح");
+        setShowDriverModal(false);
+        fetchShipment(); // Refresh shipment data
+      } else {
+        toast.error(response.data.message || "فشل في تعيين السائق");
+      }
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      const errorMessage =
+        error.response?.data?.message || "خطأ في تعيين السائق";
+      toast.error(errorMessage);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const renderTimeline = () => (
-    <div className="shipment-timeline my-4">
-      <div className="d-flex justify-content-between position-relative">
-        {shipment.path.map((step, index) => (
-          <div
-            key={index}
-            className="text-center flex-fill position-relative"
-            style={{ zIndex: 2 }}
-          >
-            <div
-              className={`rounded-circle mx-auto mb-2 ${
-                step.status === "done"
-                  ? "bg-success"
-                  : step.status === "current"
-                  ? "bg-primary"
-                  : "bg-light border"
-              }`}
-              style={{
-                width: "24px",
-                height: "24px",
-                lineHeight: "24px",
-                borderWidth: "2px",
-              }}
-            ></div>
-            <small>{step.name}</small>
-          </div>
-        ))}
-        {/* الخط بين النقاط */}
-        <div
-          className="position-absolute top-50 start-0 w-100"
-          style={{
-            height: "2px",
-            background: "#dee2e6",
-            zIndex: 1,
-            transform: "translateY(-50%)",
-          }}
-        ></div>
-      </div>
-    </div>
-  );
+  // Handle delete shipment
+  const handleDelete = async () => {
+    if (!window.confirm(`هل تريد حذف الشحنة رقم ${trackingNumber}؟`)) return;
+
+    setActionLoading(true);
+    try {
+      const response = await axios.delete(
+        `${API_BASE_URL}/shipments/${trackingNumber}`
+      );
+
+      if (response.data.success) {
+        toast.success("تم حذف الشحنة بنجاح");
+        navigate("/shipments");
+      } else {
+        toast.error("فشل في حذف الشحنة");
+      }
+    } catch (error) {
+      console.error("Error deleting shipment:", error);
+      toast.error("خطأ في حذف الشحنة");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle print
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Loading state
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل بيانات الشحنة..." />;
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <ErrorMessage
+        error={error}
+        onRetry={fetchShipment}
+        onBack={() => navigate("/shipments")}
+      />
+    );
+  }
+
+  // No shipment data
+  if (!shipment) {
+    return (
+      <ErrorMessage
+        error="لم يتم العثور على الشحنة"
+        onBack={() => navigate("/shipments")}
+      />
+    );
+  }
 
   return (
-    <div className="container mt-4">
-      <div className="card p-4">
-        <h2 className="text-start mb-4">تفاصيل الشحنة رقم #{shipment.id}</h2>
+    <div className="position-relative">
+      <div className="container mt-4">
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div className="d-flex gap-2">
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => navigate("/shipments")}
+            >
+              <FaArrowLeft className="me-2" />
+              العودة للقائمة
+            </button>
+          </div>
+          <h2 className="mb-0">تفاصيل الشحنة #{trackingNumber}</h2>
+        </div>
 
-        <div className="row">
-          <div className="col-md-6 text-start">
-            <h4>بيانات المرسل</h4>
-            <p>الاسم: {shipment.sender.name}</p>
-            <p>الجوال: {shipment.sender.phone}</p>
-            {renderAddress(shipment.sender.address)}
+        {/* Status Badge */}
+        <ShipmentStatusBadge status={shipment.status} />
+
+        {/* Main Content */}
+        <div className="card p-4 mb-4">
+          {/* Shipment Info Cards */}
+          <ShipmentInfoCard shipment={shipment} />
+
+          {/* Timeline */}
+          <ShipmentTimeline status={shipment.status} />
+
+          {/* Driver Information */}
+          <div className="row mb-4">
+            <DriverCard assignedDriver={shipment.assignedDriver} />
           </div>
 
-          <div className="col-md-6 text-start">
-            <h4>بيانات المستقبل</h4>
-            <p>الاسم: {shipment.recipient.name}</p>
-            <p>الجوال: {shipment.recipient.phone}</p>
-            {renderAddress(shipment.recipient.address)}
+          {/* Sender and Recipient */}
+          <div className="row mb-4">
+            <div className="col-md-6 mb-4">
+              <PersonCard person={shipment.sender} title="بيانات المرسل" />
+            </div>
+            <div className="col-md-6 mb-4">
+              <PersonCard
+                person={shipment.recipient}
+                title="بيانات المستلم"
+                isRecipient={true}
+              />
+            </div>
           </div>
+
+          {/* Notes */}
+          {shipment.notes && (
+            <div className="row mb-4">
+              <div className="col-12">
+                <div className="alert alert-info">
+                  <strong>ملاحظات إضافية:</strong>
+                  <div className="mt-2">{shipment.notes}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <ShipmentActions
+            shipment={shipment}
+            trackingNumber={trackingNumber}
+            onEdit={() => navigate(`/shipments/edit/${trackingNumber}`)}
+            onDelete={handleDelete}
+            onPrint={handlePrint}
+            onAssignDriver={() => setShowDriverModal(true)}
+            actionLoading={actionLoading}
+          />
         </div>
 
-        <hr />
-
-        <div className="text-start">
-          <p>نوع الشحنة: {shipment.shipmentType}</p>
-          <p>الوزن: {shipment.weight} كجم</p>
-          <p>
-            حالة الشحنة الحالية: <strong>{shipment.status}</strong>
-          </p>
-        </div>
-
-        <h5 className="mt-4 mb-2">مسار الشحنة</h5>
-        {renderTimeline()}
-
-        <div className="mt-4 text-end">
-          <button
-            className="btn btn-danger me-2"
-            onClick={() => toast.warning("تم حذف الشحنة (مؤقتًا)")}
-          >
-            حذف الشحنة
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => toast.info("تم تجميد الشحنة (مؤقتًا)")}
-          >
-            تجميد الشحنة
-          </button>
-        </div>
+        {/* Driver Assignment Modal */}
+        <DriverAssignmentModal
+          show={showDriverModal}
+          onClose={() => setShowDriverModal(false)}
+          onAssign={handleAssignDriver}
+          drivers={drivers}
+          loading={actionLoading}
+        />
       </div>
     </div>
   );
