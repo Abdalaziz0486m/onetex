@@ -16,7 +16,11 @@ const Drivers = () => {
   // جلب البيانات من API
   useEffect(() => {
     axios
-      .get(`${import.meta.env.VITE_BASE_URL}api/drivers`)
+      .get(`${import.meta.env.VITE_BASE_URL}api/drivers`,{
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
       .then((res) => {
         setDrivers(res.data);
       })

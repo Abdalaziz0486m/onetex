@@ -10,6 +10,7 @@
   /* Accent: Navy from logo */
   --accent-100: #3e4095;
   --accent-200: #5759ad;
+  --accent-100-30: #3e3f954d;
 
   /* Text Colors */
   --text-100: #401504;
@@ -37,6 +38,7 @@
 
   --accent-100: #3e4095;
   --accent-200: #5c5fa3;
+  --accent-100-30: #3e3f954d;
 
   --text-100: #f5f5f5;
   --text-100-20: #f5f5f533;
