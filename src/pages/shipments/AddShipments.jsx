@@ -8,6 +8,8 @@ export default function AddShipments() {
   const [senderAddressType, setSenderAddressType] = useState("detailed");
   const [recipientAddressType, setRecipientAddressType] = useState("detailed");
   const navigate = useNavigate();
+  const baseUrl = import.meta.env.VITE_BASE_URL;;
+  
   const nationalFields = [
     { label: "رقم البناية", name: "buildingNumber" },
     { label: "الشارع", name: "street" },
@@ -105,8 +107,13 @@ export default function AddShipments() {
       };
 
       const res = await axios.post(
-        "https://shipping.onetex.com.sa/api/shipments",
-        payload
+        `${baseUrl}api/shipments`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
 
       if (res.data.success) {

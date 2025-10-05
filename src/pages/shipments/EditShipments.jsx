@@ -123,14 +123,16 @@ export default function EditShipment() {
     setLoading(true);
     try {
       const response = await axios.get(
-        `https://shipping.onetex.com.sa/api/shipments/${trackingId}`
+        `https://shipping.onetex.com.sa/api/shipments/${trackingId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
-
-      console.log("API Response:", response); // Debug log
 
       if (response.data && response.data.data) {
         const apiData = response.data.data; // البيانات موجودة في data.data
-        console.log("API Data received:", apiData); // Debug log
 
         // Helper function to determine address type
         const getAddressType = (addressData) => {
@@ -192,7 +194,6 @@ export default function EditShipment() {
           weight: apiData.weight?.toString() || "",
         };
 
-        console.log("Form data to set:", formData); // Debug log
         setForm(formData);
       }
     } catch (error) {
@@ -204,14 +205,11 @@ export default function EditShipment() {
   }, []);
 
   useEffect(() => {
-    console.log("Tracking number:", trackingNumber); // Debug log
     fetchShipment(trackingNumber);
   }, [trackingNumber, fetchShipment]);
 
   // Debug log for form state changes
-  useEffect(() => {
-    console.log("Form state updated:", form);
-  }, [form]);
+  useEffect(() => {}, [form]);
 
   // Optimized change handlers
   const handleChange = useCallback((e, section, field) => {
@@ -323,11 +321,14 @@ export default function EditShipment() {
         ...(form.shipmentType === "عادي" && { weight: Number(form.weight) }),
       };
 
-      console.log("Payload to send:", payload); // Debug log
-
       const response = await axios.put(
         `https://shipping.onetex.com.sa/api/shipments/${trackingNumber}`,
-        payload
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
 
       if (response.data.success) {

@@ -54,7 +54,12 @@ export default function ShowShipment() {
 
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/shipments/${trackingNumber}`
+        `${API_BASE_URL}/shipments/${trackingNumber}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
 
       if (response.data && response.data.success) {

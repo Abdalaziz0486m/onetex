@@ -12,11 +12,12 @@ const Drivers = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const navigate = useNavigate();
+  const baseUrl = import.meta.env.VITE_BASE_URL
 
   // جلب البيانات من API
   useEffect(() => {
     axios
-      .get(`${import.meta.env.VITE_BASE_URL}api/drivers`,{
+      .get(`${baseUrl}api/drivers`,{
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -31,7 +32,7 @@ const Drivers = () => {
 
   const handleDelete = () => {
     axios
-      .delete(`${import.meta.env.VITE_BASE_URL}api/drivers/${selectedId}`)
+      .delete(`${baseUrl}api/drivers/${selectedId}`)
       .then(() => {
         setDrivers(drivers.filter((d) => d._id !== selectedId));
         toast.success("تم حذف السائق بنجاح");

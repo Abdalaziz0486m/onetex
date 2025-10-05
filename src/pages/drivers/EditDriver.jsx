@@ -38,6 +38,7 @@ const EditDriver = () => {
     city: null,
     area: null,
   });
+  const baseUrl = import.meta.env.VITE_BASE_URL;
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -45,9 +46,11 @@ const EditDriver = () => {
   useEffect(() => {
     const fetchDriver = async () => {
       try {
-        const { data } = await axios.get(
-          `https://shipping.onetex.com.sa/api/drivers/${id}`
-        );
+        const { data } = await axios.get(`${baseUrl}/api/drivers/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
 
         const driver = data; // الـ API بيرجع السائق مباشرة
 
@@ -97,10 +100,7 @@ const EditDriver = () => {
         Area: form.area?.apiValue,
       };
 
-      await axios.put(
-        `https://shipping.onetex.com.sa/api/drivers/${id}`,
-        payload
-      );
+      await axios.put(`${baseUrl}b/api/drivers/${id}`, payload);
 
       toast.success("تم تحديث بيانات السائق بنجاح");
       setTimeout(() => {

@@ -6,9 +6,6 @@ import ConfirmModal from "../../components/ui/ConfirmModal";
 import { Bounce, toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 
-// Constants for better maintainability
-const API_BASE_URL = "https://shipping.onetex.com.sa/api";
-
 // Status mappings
 const STATUS_TRANSLATIONS = {
   Pending: "قيد الإنشاء",
@@ -33,12 +30,17 @@ export default function Shipments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const navigate = useNavigate();
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Fetch shipments from API
   const fetchShipments = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/shipments`);
+      const response = await axios.get(`${API_BASE_URL}api/shipments`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       if (response.data.success) {
         const mappedShipments = response.data.data.map((shipment) => ({
@@ -250,7 +252,12 @@ export default function Shipments() {
     setDeleting(true);
     try {
       const response = await axios.delete(
-        `${API_BASE_URL}/shipments/${selectedShipment.trackingNumber}`
+        `${API_BASE_URL}/shipments/${selectedShipment.trackingNumber}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
 
       if (response.data.success) {
