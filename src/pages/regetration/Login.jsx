@@ -1,18 +1,19 @@
+// src/pages/regetration/Login.jsx
 import Joi from "joi";
 import { useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Login() {
   const [user, setUser] = useState({ phone: "", password: "" });
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const baseUrl = import.meta.env.VITE_BASE_URL;
-  const navigate = useNavigate(); // ✅ هوك بيتاخد هنا مش جوه الفانكشن
+  const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   function getUser(e) {
     const { id, value } = e.target;
@@ -70,15 +71,16 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const { data } = await axios.post(`${baseUrl}/api/auth/login`, user);
-      toast.success("تم تسجيل الدخول بنجاح 🎉");
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/"); // ✅ هنا بتتنادى صح
+      const result = await signIn(user);
+
+      if (result.success) {
+        toast.success("تم تسجيل الدخول بنجاح 🎉");
+        navigate("/");
+      } else {
+        toast.error(result.error);
+      }
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "فشل تسجيل الدخول. حاول مرة أخرى."
-      );
+      toast.error("حدث خطأ غير متوقع. حاول مرة أخرى.");
     } finally {
       setLoading(false);
     }

@@ -1,24 +1,24 @@
-import axios from "axios";
+// src/pages/regetration/Signup.jsx
 import Joi from "joi";
 import { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Signup() {
   const [user, setUser] = useState({ phone: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const baseUrl = import.meta.env.VITE_BASE_URL;
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
   function getUser(e) {
     const { id, value } = e.target;
     setUser((prev) => ({ ...prev, [id]: value }));
   }
 
-  // ✅ schema مع تأكيد كلمة المرور
   const schema = Joi.object({
     phone: Joi.string()
       .pattern(
@@ -49,7 +49,6 @@ export default function Signup() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    // ✅ جلب قيم كل الحقول من الـ FormData
     const formData = new FormData(e.target);
     const values = Object.fromEntries(formData.entries());
 
@@ -62,17 +61,20 @@ export default function Signup() {
 
     try {
       setLoading(true);
-      const { data } = await axios.post(`${baseUrl}/api/auth/register`, {
+      const result = await signUp({
         phone: values.phone,
         password: values.password,
       });
-      toast.success(data.message);
-      console.log(data.otp);
-      navigate(`/verify/${user.phone}`);
+
+      if (result.success) {
+        toast.success(result.data.message);
+        console.log(result.data.otp);
+        navigate(`/verify/${user.phone}`);
+      } else {
+        toast.error(result.error);
+      }
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "فشل تسجيل الحساب. حاول مرة أخرى."
-      );
+      toast.error("حدث خطأ غير متوقع. حاول مرة أخرى.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +135,7 @@ export default function Signup() {
                 className="form-control"
                 dir="ltr"
                 placeholder="أدخل كلمة المرور"
-                autoComplete="current-password"
+                autoComplete="new-password"
               />
             </div>
           </div>

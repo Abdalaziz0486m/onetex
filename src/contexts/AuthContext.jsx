@@ -21,12 +21,12 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const baseUrl = import.meta.env.VITE_BASE_URL;
 
-  // تحقق من وجود token في localStorage عند تحميل التطبيق
+  // ✅ تحقق من وجود token في localStorage عند تحميل التطبيق
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
-  // إعداد axios interceptor للتعامل مع الـ token
+  // ✅ إعداد axios interceptor للتعامل مع الـ token
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
@@ -57,27 +57,24 @@ export const AuthProvider = ({ children }) => {
     };
   }, [token]);
 
-  const checkAuthStatus = async () => {
+  // ✅ النسخة البسيطة بدون verify-token endpoint
+  const checkAuthStatus = () => {
     try {
       const savedToken = localStorage.getItem("token");
       const savedUser = localStorage.getItem("user");
 
       if (savedToken && savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-
-        // تحقق من صحة الـ token عبر API call
-        const response = await axios.get(`${baseUrl}/api/auth/verify-token`, {
-          headers: { Authorization: `Bearer ${savedToken}` },
-        });
-
-        if (response.data.valid) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
           setToken(savedToken);
           setUser(parsedUser);
           setIsAuthenticated(true);
-        } else {
-          // إذا كان الـ token غير صالح، امسح البيانات
+        } catch (parseError) {
+          console.error("Error parsing user data:", parseError);
           clearAuthData();
         }
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error("Error checking auth status:", error);

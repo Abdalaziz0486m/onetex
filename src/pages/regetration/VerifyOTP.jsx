@@ -1,42 +1,38 @@
-import axios from "axios";
+// src/pages/regetration/VerifyOTP.jsx
 import React, { useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function VerifyOTP() {
   const params = useParams();
   const phone = params.phone;
-  const baseUrl = import.meta.env.VITE_BASE_URL;
   const navigate = useNavigate();
+  const { verifyOTP } = useAuth();
 
-  // نخزن الأرقام كل رقم في index
   const [otpDigits, setOtpDigits] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
   const inputsRef = useRef([]);
 
-  // تحديث الرقم اللي في كل input
   const handleChange = (value, index) => {
     if (/^\d?$/.test(value)) {
       const newOtp = [...otpDigits];
       newOtp[index] = value;
       setOtpDigits(newOtp);
 
-      // التنقل للـ input اللي بعده
       if (value && index < 5) {
         inputsRef.current[index + 1].focus();
       }
     }
   };
 
-  // عند الضغط على Backspace
   const handleKeyDown = (e, index) => {
     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
       inputsRef.current[index - 1].focus();
     }
   };
 
-  // عند عمل Paste
   const handlePaste = (e) => {
     e.preventDefault();
     const pasteData = e.clipboardData.getData("Text").slice(0, 6);
@@ -52,7 +48,6 @@ export default function VerifyOTP() {
     }
   };
 
-  // عند ارسال الفورم
   async function handleSubmit(e) {
     e.preventDefault();
     const otp = otpDigits.join("");
@@ -62,23 +57,20 @@ export default function VerifyOTP() {
       return;
     }
 
-    const payload = { phone, otp };
-
     try {
       setLoading(true);
-      const { data } = await axios.post(
-        `${baseUrl}/api/auth/verify-otp`,
-        payload
-      );
-      toast.success("تم التحقق بنجاح ✅");
-      console.log("Response:", data);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/"); // ✅ هنا بتتنادى صح
+      const result = await verifyOTP(phone, otp);
+
+      if (result.success) {
+        toast.success("تم التحقق بنجاح ✅");
+        navigate("/");
+      } else {
+        toast.error(result.error);
+        setOtpDigits(Array(6).fill(""));
+      }
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "كود التحقق غير صحيح ❌");
-      setOtpDigits(Array(6).fill("")); // تصفير الحقول
+      toast.error("حدث خطأ غير متوقع. حاول مرة أخرى.");
+      setOtpDigits(Array(6).fill(""));
     } finally {
       setLoading(false);
     }
@@ -131,7 +123,6 @@ export default function VerifyOTP() {
         </div>
       </form>
 
-      {/* Toast notifications */}
       <ToastContainer position="top-center" />
     </div>
   );

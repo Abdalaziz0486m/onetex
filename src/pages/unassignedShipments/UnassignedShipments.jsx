@@ -206,7 +206,7 @@ export default function UnassignedShipments() {
 
   // Expandable Component for row details
   const ExpandedComponent = ({ data }) => (
-    <div className="p-3 bg-light border-top">
+    <div className="p-3 card border-top">
       <div className="row g-3">
         <div className="col-md-6">
           <h6 className="text-primary mb-2 fw-bold">📦 معلومات المرسل</h6>
@@ -296,7 +296,7 @@ export default function UnassignedShipments() {
       name: "المرسل → المستلم",
       cell: (row) => (
         <div style={{ fontSize: "0.875rem", lineHeight: "1.4" }}>
-          <div className="fw-bold text-dark">
+          <div className="fw-bold ">
             {row.sender?.name || "غير محدد"}
           </div>
           <div className="text-muted small">

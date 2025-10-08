@@ -173,12 +173,12 @@ header {
   color: var(--text-100-20) !important;
 }
 
-.modal{
+.modal {
   max-width: 100% !important;
 }
 
-.reg{
-  background-image: url('./assets/regBg.jpg');
+.reg {
+  background-image: url("./assets/regBg.jpg");
   background-position: center center;
   background-size: cover;
   background-attachment: fixed;
@@ -188,7 +188,7 @@ header {
   align-items: center;
 }
 
-.reg form{
+.reg form {
   min-width: 380px;
   min-height: 380px;
   padding: 1em;
@@ -198,12 +198,29 @@ header {
   backdrop-filter: blur(10px);
 }
 
-.reg form .form-lapel{
+.reg form .form-lapel {
   color: white !important;
   font-weight: bold;
 }
 
 .reg form .form-control {
-
 }
 
+.dZdOzu {
+  background-color: var(--bg-100) !important;
+  color: var(--text-100) !important;
+}
+
+.hwfooH {
+  background-color: var(--bg-200) !important;
+  color: var(--text-100) !important;
+}
+
+.bcqyUS{
+  background-color: var(--bg-100) !important;
+  color: var(--text-100) !important;
+}
+
+.text-primary{
+  color: var(--primary-100) !important;
+}
