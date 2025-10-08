@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "react-data-table-component";
 import { useNavigate } from "react-router-dom";
-import { FaEdit, FaTrash, FaEye, FaPlus, FaSearch } from "react-icons/fa";
-import ConfirmModal from "../../components/ui/ConfirmModal";
+import { FaEye, FaUserPlus, FaSearch, FaTruck } from "react-icons/fa";
 import { Bounce, toast, ToastContainer } from "react-toastify";
 import axios from "axios";
+import DriverAssignmentModal from "../../components/shipment/DriverAssignmentModal";
 
 // Status mappings
 const STATUS_TRANSLATIONS = {
@@ -20,15 +20,15 @@ const STATUS_TRANSLATIONS = {
   "تم الإلغاء": "ملغاة",
 };
 
-export default function Shipments() {
+export default function UnassignedShipments() {
   const [shipments, setShipments] = useState([]);
   const [filteredShipments, setFilteredShipments] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [selectedShipment, setSelectedShipment] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
   const API_BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -40,15 +40,18 @@ export default function Shipments() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch shipments from API
-  const fetchShipments = useCallback(async () => {
+  // Fetch unassigned shipments
+  const fetchUnassignedShipments = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}api/shipments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await axios.get(
+        `${API_BASE_URL}/api/shipments/unassigned`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.data.success) {
         const mappedShipments = response.data.data.map((shipment) => ({
@@ -60,33 +63,49 @@ export default function Shipments() {
           shipmentType: shipment.shipmentType,
           weight: shipment.weight,
           createdAt: shipment.createdAt,
-          updatedAt: shipment.updatedAt,
         }));
 
         setShipments(mappedShipments);
         setFilteredShipments(mappedShipments);
       } else {
-        toast.error("فشل في جلب الشحنات");
+        toast.error("فشل في جلب الشحنات غير المعينة");
       }
     } catch (error) {
-      console.error("Error fetching shipments:", error);
+      console.error("Error fetching unassigned shipments:", error);
       toast.error("خطأ في الاتصال بالخادم");
     } finally {
       setLoading(false);
     }
   }, [API_BASE_URL]);
 
-  useEffect(() => {
-    fetchShipments();
-  }, [fetchShipments]);
+  // Fetch available drivers
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-  // Filter shipments based on search term and status
-  useEffect(() => {
-    let filtered = shipments;
+      const driversData = response.data.success
+        ? response.data.data
+        : response.data;
+      setDrivers(driversData);
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+      toast.error("خطأ في جلب السائقين");
+    }
+  }, [API_BASE_URL]);
 
-    // Filter by search term
+  useEffect(() => {
+    fetchUnassignedShipments();
+    fetchDrivers();
+  }, [fetchUnassignedShipments, fetchDrivers]);
+
+  // Filter shipments based on search term
+  useEffect(() => {
     if (searchTerm) {
-      filtered = filtered.filter(
+      const filtered = shipments.filter(
         (shipment) =>
           shipment.trackingNumber
             ?.toLowerCase()
@@ -100,19 +119,13 @@ export default function Shipments() {
           shipment.sender?.phone?.includes(searchTerm) ||
           shipment.recipient?.phone?.includes(searchTerm)
       );
+      setFilteredShipments(filtered);
+    } else {
+      setFilteredShipments(shipments);
     }
+  }, [shipments, searchTerm]);
 
-    // Filter by status
-    if (statusFilter) {
-      filtered = filtered.filter(
-        (shipment) => shipment.status === statusFilter
-      );
-    }
-
-    setFilteredShipments(filtered);
-  }, [shipments, searchTerm, statusFilter]);
-
-  // Get status badge with proper styling
+  // Get status badge
   const getStatusBadge = (status) => {
     const translatedStatus = STATUS_TRANSLATIONS[status] || status;
 
@@ -140,7 +153,7 @@ export default function Shipments() {
     }
   };
 
-  // Format date for display
+  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleDateString("ar-SA", {
@@ -150,6 +163,45 @@ export default function Shipments() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  // Handle assign driver
+  const handleAssignDriver = async (driverId) => {
+    if (!selectedShipment || !driverId) {
+      toast.error("الرجاء اختيار سائق");
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      const response = await axios.patch(
+        `${API_BASE_URL}api/shipments/${selectedShipment.trackingNumber}/assign-driver`,
+        { driverId: driverId },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setShipments((prev) =>
+          prev.filter((s) => s.id !== selectedShipment.id)
+        );
+        setShowAssignModal(false);
+        setSelectedShipment(null);
+        toast.success("تم تعيين السائق بنجاح ✅");
+      } else {
+        toast.error(response.data.message || "فشل في تعيين السائق");
+      }
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      const errorMessage =
+        error.response?.data?.message || "خطأ في تعيين السائق";
+      toast.error(errorMessage);
+    } finally {
+      setAssigning(false);
+    }
   };
 
   // Expandable Component for row details
@@ -198,9 +250,6 @@ export default function Shipments() {
             <span>
               <strong>تاريخ الإنشاء:</strong> {formatDate(data.createdAt)}
             </span>
-            <span>
-              <strong>تاريخ التحديث:</strong> {formatDate(data.updatedAt)}
-            </span>
             {data.weight && (
               <span>
                 <strong>الوزن:</strong> {data.weight} كجم
@@ -217,7 +266,7 @@ export default function Shipments() {
     </div>
   );
 
-  // Table columns configuration - simplified for responsive
+  // Table columns - simplified for responsive
   const columns = [
     {
       name: "رقم التتبع",
@@ -289,67 +338,24 @@ export default function Shipments() {
             <FaEye />
           </button>
           <button
-            className="btn btn-outline-primary btn-sm"
-            onClick={() => navigate(`/shipments/edit/${row.trackingNumber}`)}
-            title="تعديل"
-          >
-            <FaEdit />
-          </button>
-          <button
-            className="btn btn-outline-danger btn-sm"
+            className="btn btn-outline-success btn-sm"
             onClick={() => {
               setSelectedShipment(row);
-              setShowModal(true);
+              setShowAssignModal(true);
             }}
-            title="حذف"
+            title="تعيين سائق"
           >
-            <FaTrash />
+            <FaUserPlus />
           </button>
         </div>
       ),
       ignoreRowClick: true,
-      width: "130px",
+      width: "100px",
       right: true,
     },
   ];
 
-  // Handle delete shipment
-  const handleDelete = async () => {
-    if (!selectedShipment) return;
-
-    setDeleting(true);
-    try {
-      const response = await axios.delete(
-        `${API_BASE_URL}/shipments/${selectedShipment.trackingNumber}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (response.data.success) {
-        setShipments((prev) =>
-          prev.filter((s) => s.id !== selectedShipment.id)
-        );
-        setShowModal(false);
-        toast.success("تم حذف الشحنة بنجاح ✅");
-      } else {
-        toast.error(response.data.message || "فشل في حذف الشحنة");
-      }
-    } catch (error) {
-      console.error("Error deleting shipment:", error);
-      const errorMessage = error.response?.data?.message || "خطأ في حذف الشحنة";
-      toast.error(errorMessage);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Get unique statuses for filter dropdown
-  const uniqueStatuses = [...new Set(shipments.map((s) => s.status))];
-
-  // Custom loading component
+  // Loading component
   const LoadingComponent = () => (
     <div className="d-flex justify-content-center align-items-center p-5">
       <div className="spinner-border text-primary" role="status">
@@ -358,60 +364,45 @@ export default function Shipments() {
     </div>
   );
 
-  // Custom no data component
+  // No data component
   const NoDataComponent = () => (
     <div className="text-center p-5">
       <div className="mb-3">
-        <FaSearch size={48} className="text-muted" />
+        <FaTruck size={48} className="text-muted" />
       </div>
-      <h5 className="text-muted">لا توجد شحنات</h5>
+      <h5 className="text-muted">لا توجد شحنات غير معينة</h5>
       <p className="text-muted">
-        {searchTerm || statusFilter
+        {searchTerm
           ? "لا توجد نتائج تطابق البحث"
-          : "لم يتم إنشاء أي شحنات بعد"}
+          : "جميع الشحنات تم تعيينها لسائقين"}
       </p>
-      {!searchTerm && !statusFilter && (
-        <button
-          className="btn btn-primary mt-2"
-          onClick={() => navigate("add")}
-        >
-          <FaPlus className="me-2" />
-          إنشاء شحنة جديدة
-        </button>
-      )}
     </div>
   );
 
   return (
-    <div className="container-fluid">
-      <div className="card p-4 mt-4">
-        {/* Header */}
-        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-          <div className="d-flex gap-2">
-            <button className="btn btn-primary" onClick={() => navigate("add")}>
-              <FaPlus className="me-2" />
-              إضافة شحنة
-            </button>
-            <button
-              className="btn btn-outline-secondary"
-              onClick={fetchShipments}
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="spinner-border spinner-border-sm me-2" />
-              ) : (
-                "تحديث"
-              )}
-            </button>
-          </div>
-          <h2 className="mb-0 text-end">
-            قائمة الشحنات ({filteredShipments.length})
-          </h2>
-        </div>
+    <div className="p-3">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <button
+          className="btn btn-outline-secondary"
+          onClick={fetchUnassignedShipments}
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="spinner-border spinner-border-sm me-2" />
+          ) : (
+            "تحديث"
+          )}
+        </button>
+        <h2 className="mb-0 text-end">
+          الشحنات غير المعينة ({filteredShipments.length})
+        </h2>
+      </div>
 
-        {/* Filters */}
-        <div className="row mb-4 g-3">
-          <div className="col-lg-5 col-md-6">
+      {/* Search */}
+      <div className="container-fluid">
+        <div className="row mb-4">
+          <div className="col-md-8 col-lg-6">
             <div className="input-group">
               <span className="input-group-text">
                 <FaSearch />
@@ -433,36 +424,14 @@ export default function Shipments() {
               )}
             </div>
           </div>
-          <div className="col-lg-3 col-md-4">
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">جميع الحالات</option>
-              {uniqueStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {STATUS_TRANSLATIONS[status] || status}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-lg-4 col-md-2 text-end">
-            {statusFilter && (
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => setStatusFilter("")}
-              >
-                مسح الفلتر
-              </button>
-            )}
-          </div>
         </div>
+      </div>
 
-        {/* Info Alert */}
+      {/* Data Table */}
+      <div className="card shadow-sm">
         {windowWidth > 768 && (
           <div
-            className="alert alert-info d-flex align-items-center gap-2 mb-3"
+            className="alert alert-info m-3 mb-0 d-flex align-items-center gap-2"
             style={{ fontSize: "0.9rem" }}
           >
             <span style={{ fontSize: "1.2rem" }}>💡</span>
@@ -472,8 +441,6 @@ export default function Shipments() {
             </span>
           </div>
         )}
-
-        {/* Data Table */}
         <DataTable
           columns={columns}
           data={filteredShipments}
@@ -481,8 +448,8 @@ export default function Shipments() {
           paginationPerPage={10}
           paginationRowsPerPageOptions={[10, 25, 50, 100]}
           highlightOnHover
-          striped
           responsive
+          striped
           progressPending={loading}
           progressComponent={<LoadingComponent />}
           noDataComponent={<NoDataComponent />}
@@ -519,30 +486,26 @@ export default function Shipments() {
             },
           }}
         />
-
-        {/* Delete Confirmation Modal */}
-        <ConfirmModal
-          show={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setSelectedShipment(null);
-          }}
-          onConfirm={handleDelete}
-          message={`هل تريد حذف الشحنة رقم: ${selectedShipment?.trackingNumber}؟`}
-          confirmText="حذف"
-          cancelText="إلغاء"
-          loading={deleting}
-          variant="danger"
-        />
-
-        {/* Toast Container */}
-        <ToastContainer
-          position="top-left"
-          transition={Bounce}
-          rtl
-          theme="light"
-        />
       </div>
+
+      {/* Assign Driver Modal */}
+      <DriverAssignmentModal
+        show={showAssignModal}
+        onClose={() => {
+          setShowAssignModal(false);
+          setSelectedShipment(null);
+        }}
+        onAssign={handleAssignDriver}
+        loading={assigning}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-left"
+        transition={Bounce}
+        rtl
+        theme="light"
+      />
     </div>
   );
 }

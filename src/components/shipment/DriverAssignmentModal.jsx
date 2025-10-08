@@ -4,7 +4,6 @@ import axios from "axios";
 
 const { useState, useEffect } = React;
 
-const API_BASE_URL = "https://shipping.onetex.com.sa/api";
 
 export default function DriverAssignmentModal({
   show,
@@ -16,7 +15,8 @@ export default function DriverAssignmentModal({
   const [drivers, setDrivers] = useState([]);
   const [fetchingDrivers, setFetchingDrivers] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
+  
   // Fetch drivers from API when modal opens
   useEffect(() => {
     if (show) {
@@ -30,9 +30,11 @@ export default function DriverAssignmentModal({
 
     try {
       console.log("Fetching drivers from API...");
-      const response = await axios.get(`${API_BASE_URL}/drivers`);
-
-      console.log("Drivers API response:", response.data);
+      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
       // التحقق من بنية الاستجابة المختلفة
       if (response.data.success && response.data.data) {

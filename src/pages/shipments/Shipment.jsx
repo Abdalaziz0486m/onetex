@@ -17,8 +17,6 @@ import ErrorMessage from "../../components/ui/ErrorMessage";
 
 const { useEffect, useState, useCallback } = React;
 
-const API_BASE_URL = "https://shipping.onetex.com.sa/api";
-
 export default function ShowShipment() {
   const { trackingNumber } = useParams();
   const navigate = useNavigate();
@@ -28,11 +26,16 @@ export default function ShowShipment() {
   const [actionLoading, setActionLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [showDriverModal, setShowDriverModal] = React.useState(false);
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Fetch drivers from API
   const fetchDrivers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/drivers`);
+      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
       if (response.data.success) {
         setDrivers(response.data.data);
       }
@@ -54,7 +57,7 @@ export default function ShowShipment() {
 
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/shipments/${trackingNumber}`,
+        `${API_BASE_URL}api/shipments/${trackingNumber}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -91,7 +94,7 @@ export default function ShowShipment() {
     setActionLoading(true);
     try {
       const response = await axios.patch(
-        `${API_BASE_URL}/shipments/${trackingNumber}/assign-driver`,
+        `${API_BASE_URL}api/shipments/${trackingNumber}/assign-driver`,
         { driverId }
       );
 
@@ -119,7 +122,7 @@ export default function ShowShipment() {
     setActionLoading(true);
     try {
       const response = await axios.delete(
-        `${API_BASE_URL}/shipments/${trackingNumber}`
+        `${API_BASE_URL}api/shipments/${trackingNumber}`
       );
 
       if (response.data.success) {

@@ -5,7 +5,7 @@ import Logo from "../../assets/logo.png";
 export default function Aside({ closeSidebar, toggleSidebar, sidebarOpen }) {
   return (
     <aside
-      className={`sidebar p-3 border-start ${sidebarOpen ? "open" : ""}`}
+      className={`sidebar p-3 pe-0 border-start ${sidebarOpen ? "open" : ""}`}
       onClick={closeSidebar}
     >
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -29,6 +29,9 @@ export default function Aside({ closeSidebar, toggleSidebar, sidebarOpen }) {
         </NavLink>
         <NavLink to="/shipments" className="nav-link">
           📦 الشحنات
+        </NavLink>
+        <NavLink to="/unassignedShipments" className="nav-link">
+          🛂 شحنتان بانتظار التوجيه
         </NavLink>
       </nav>
     </aside>

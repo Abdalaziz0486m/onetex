@@ -16,6 +16,7 @@ import Login from "./pages/regetration/Login";
 import Signup from "./pages/regetration/Signup";
 import "./App.css";
 import VerifyOTP from "./pages/regetration/VerifyOTP";
+import UnassignedShipments from "./pages/unassignedShipments/unassignedShipments";
 
 function App() {
   const token = localStorage.getItem("token");
@@ -41,6 +42,7 @@ function App() {
               path="shipments/edit/:trackingNumber"
               element={<EditShipments />}
             />
+            <Route path="unassignedshipments"  element={<UnassignedShipments />} />
             <Route path="drivers" element={<Drivers />} />
             <Route path="drivers/driver/:id" element={<Driver />} />
             <Route path="drivers/add" element={<AddDrivers />} />
