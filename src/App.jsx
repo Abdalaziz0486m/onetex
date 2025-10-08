@@ -16,7 +16,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/regetration/Login";
 import Signup from "./pages/regetration/Signup";
 import VerifyOTP from "./pages/regetration/VerifyOTP";
-import UnassignedShipments from "./pages/unassignedShipments/unassignedShipments";
+import UnassignedShipments from "./pages/unassignedShipments/UnassignedShipments";
 import "./App.css";
 
 // ✅ Component for protected routes
