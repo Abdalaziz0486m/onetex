@@ -208,101 +208,111 @@ export default function Shipments() {
   );
 
   // Table columns configuration - simplified for responsive
-  const columns = [
-    {
-      name: "رقم التتبع",
-      selector: (row) => row.trackingNumber,
-      sortable: true,
-      width: "140px",
-      cell: (row) => (
-        <div className="d-flex align-items-center gap-2">
-          {windowWidth > 768 && (
-            <span className="text-muted" style={{ fontSize: "0.75rem" }}>
-              ⓘ
+  const getColumns = () => {
+    const allColumns = [
+      {
+        name: "رقم التتبع",
+        selector: (row) => row.trackingNumber,
+        sortable: true,
+        width: "140px",
+        cell: (row) => (
+          <div className="d-flex align-items-center gap-2">
+            {windowWidth > 768 && (
+              <span className="text-muted" style={{ fontSize: "0.75rem" }}>
+                ⓘ
+              </span>
+            )}
+            <span
+              className="text-primary fw-bold"
+              style={{ cursor: "pointer" }}
+              onClick={() =>
+                navigate(`/shipments/shipment/${row.trackingNumber}`)
+              }
+            >
+              {row.trackingNumber}
             </span>
-          )}
-          <span
-            className="text-primary fw-bold"
-            style={{ cursor: "pointer" }}
-            onClick={() =>
-              navigate(`/shipments/shipment/${row.trackingNumber}`)
-            }
-          >
-            {row.trackingNumber}
-          </span>
-        </div>
-      ),
-    },
-    {
-      name: "المرسل → المستلم",
-      cell: (row) => (
-        <div style={{ fontSize: "0.875rem", lineHeight: "1.4" }}>
-          <div className="fw-bold text-dark">
-            {row.sender?.name || "غير محدد"}
           </div>
-          <div className="text-muted small">
-            <span>↓ </span>
-            {row.recipient?.name || "غير محدد"}
+        ),
+      },
+      {
+        name: "المرسل → المستلم",
+        cell: (row) => (
+          <div style={{ fontSize: "0.875rem", lineHeight: "1.4" }}>
+            <div className="fw-bold text-dark">
+              {row.sender?.name || "غير محدد"}
+            </div>
+            <div className="text-muted small">
+              <span>↓ </span>
+              {row.recipient?.name || "غير محدد"}
+            </div>
           </div>
-        </div>
-      ),
-      sortable: true,
-      grow: 2,
-      wrap: true,
-    },
-    {
-      name: "الحالة",
-      cell: (row) => getStatusBadge(row.status),
-      sortable: true,
-      width: "120px",
-      hide: windowWidth < 768,
-    },
-    {
-      name: "التاريخ",
-      selector: (row) => formatDate(row.createdAt),
-      sortable: true,
-      width: "140px",
-      hide: windowWidth < 992,
-      wrap: true,
-    },
-    {
-      name: "التحكم",
-      cell: (row) => (
-        <div className="d-flex gap-1">
-          <button
-            className="btn btn-outline-info btn-sm"
-            onClick={() =>
-              navigate(`/shipments/shipment/${row.trackingNumber}`)
-            }
-            title="عرض التفاصيل"
-          >
-            <FaEye />
-          </button>
-          <button
-            className="btn btn-outline-primary btn-sm"
-            onClick={() => navigate(`/shipments/edit/${row.trackingNumber}`)}
-            title="تعديل"
-          >
-            <FaEdit />
-          </button>
-          <button
-            className="btn btn-outline-danger btn-sm"
-            onClick={() => {
-              setSelectedShipment(row);
-              setShowModal(true);
-            }}
-            title="حذف"
-          >
-            <FaTrash />
-          </button>
-        </div>
-      ),
-      ignoreRowClick: true,
-      width: "130px",
-      right: true,
-    },
-  ];
+        ),
+        sortable: true,
+        width: "250px", // ✅ استخدم width بدلاً من grow
+        wrap: true,
+      },
+      // ✅ إضافة الأعمدة بشكل شرطي بدلاً من hide
+      ...(windowWidth >= 768
+        ? [
+            {
+              name: "الحالة",
+              cell: (row) => getStatusBadge(row.status),
+              sortable: true,
+              width: "120px",
+            },
+          ]
+        : []),
+      ...(windowWidth >= 992
+        ? [
+            {
+              name: "التاريخ",
+              selector: (row) => formatDate(row.createdAt),
+              sortable: true,
+              width: "140px",
+              wrap: true,
+            },
+          ]
+        : []),
+      {
+        name: "التحكم",
+        cell: (row) => (
+          <div className="d-flex gap-1">
+            <button
+              className="btn btn-outline-info btn-sm"
+              onClick={() =>
+                navigate(`/shipments/shipment/${row.trackingNumber}`)
+              }
+              title="عرض التفاصيل"
+            >
+              <FaEye />
+            </button>
+            <button
+              className="btn btn-outline-primary btn-sm"
+              onClick={() => navigate(`/shipments/edit/${row.trackingNumber}`)}
+              title="تعديل"
+            >
+              <FaEdit />
+            </button>
+            <button
+              className="btn btn-outline-danger btn-sm"
+              onClick={() => {
+                setSelectedShipment(row);
+                setShowModal(true);
+              }}
+              title="حذف"
+            >
+              <FaTrash />
+            </button>
+          </div>
+        ),
+        ignoreRowClick: true,
+        width: "130px",
+        // ✅ حذف right prop - سيتم محاذاته تلقائياً
+      },
+    ];
 
+    return allColumns;
+  };
   // Handle delete shipment using service
   const handleDelete = async () => {
     if (!selectedShipment) return;
@@ -459,7 +469,7 @@ export default function Shipments() {
 
         {/* Data Table */}
         <DataTable
-          columns={columns}
+          columns={getColumns()} // ✅ استخدم الدالة
           data={filteredShipments}
           pagination
           paginationPerPage={10}

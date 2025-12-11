@@ -321,6 +321,62 @@ export const getAreaOptionFromApiValue = (cityValue, apiValue) => {
   return areas[cityValue].find((area) => area.apiValue === apiValue) || null;
 };
 
+/**
+ * جلب السائقين المعلقين (غير الموافق عليهم)
+ * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
+ * @returns {Promise<Object>} - قائمة السائقين المعلقين
+ */
+export const getPendingDrivers = async (params = {}) => {
+  try {
+    const response = await axios.get("/api/drivers/pending", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * جلب السائقين الموافق عليهم
+ * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
+ * @returns {Promise<Object>} - قائمة السائقين الموافق عليهم
+ */
+export const getApprovedDrivers = async (params = {}) => {
+  try {
+    const response = await axios.get("/api/drivers/approved", { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * الموافقة على سائق
+ * @param {String} driverId - معرف السائق
+ * @returns {Promise<Object>} - بيانات السائق بعد الموافقة
+ */
+export const approveDriver = async (driverId) => {
+  try {
+    const response = await axios.post(`/api/drivers/${driverId}/approve`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * رفض سائق
+ * @param {String} driverId - معرف السائق
+ * @returns {Promise<Object>} - رسالة التأكيد
+ */
+export const rejectDriver = async (driverId) => {
+  try {
+    const response = await axios.post(`/api/drivers/${driverId}/reject`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export default {
   // CRUD Operations
   getAllDrivers,
@@ -336,6 +392,12 @@ export default {
   searchDrivers,
   getDriversByRegion,
   getDriversByArea,
+
+  // Driver Approval Management
+  getPendingDrivers,
+  getApprovedDrivers,
+  approveDriver,
+  rejectDriver,
 
   // Statistics & Export
   getDriversStatistics,

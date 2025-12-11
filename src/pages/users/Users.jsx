@@ -17,7 +17,6 @@ import { Bounce, toast, ToastContainer } from "react-toastify";
 import {
   getAllUsers,
   deleteUser,
-  getRoleBadge as getRoleInfo,
   getUserTypeLabel,
   getUserTypeIcon,
   roles,
@@ -331,7 +330,7 @@ export default function Users() {
           </div>
         ),
         sortable: true,
-        grow: 2,
+        width: "250px", // ✅ استخدم width فقط
         wrap: true,
       },
       {
@@ -340,38 +339,53 @@ export default function Users() {
         sortable: true,
         width: "130px",
       },
-      {
-        name: "النوع",
-        cell: (row) => getUserTypeBadge(row.userType),
-        sortable: true,
-        width: "110px",
-        hide: windowWidth < 992,
-      },
-      {
-        name: "الحالة",
-        cell: (row) => getVerificationBadge(row.isVerified),
-        sortable: true,
-        width: "110px",
-        hide: windowWidth < 1200,
-      },
-      {
-        name: "الشحنات",
-        selector: (row) => row.shipmentsCount,
-        sortable: true,
-        width: "90px",
-        cell: (row) => (
-          <span className="badge bg-info text-dark">{row.shipmentsCount}</span>
-        ),
-        hide: windowWidth < 1400,
-      },
-      {
-        name: "التاريخ",
-        selector: (row) => formatDate(row.createdAt),
-        sortable: true,
-        width: "150px",
-        wrap: true,
-        hide: windowWidth < 1600,
-      },
+      // ✅ إضافة الأعمدة بشكل شرطي
+      ...(windowWidth >= 992
+        ? [
+            {
+              name: "النوع",
+              cell: (row) => getUserTypeBadge(row.userType),
+              sortable: true,
+              width: "110px",
+            },
+          ]
+        : []),
+      ...(windowWidth >= 1200
+        ? [
+            {
+              name: "الحالة",
+              cell: (row) => getVerificationBadge(row.isVerified),
+              sortable: true,
+              width: "110px",
+            },
+          ]
+        : []),
+      ...(windowWidth >= 1400
+        ? [
+            {
+              name: "الشحنات",
+              selector: (row) => row.shipmentsCount,
+              sortable: true,
+              width: "90px",
+              cell: (row) => (
+                <span className="badge bg-info text-dark">
+                  {row.shipmentsCount}
+                </span>
+              ),
+            },
+          ]
+        : []),
+      ...(windowWidth >= 1600
+        ? [
+            {
+              name: "التاريخ",
+              selector: (row) => formatDate(row.createdAt),
+              sortable: true,
+              width: "150px",
+              wrap: true,
+            },
+          ]
+        : []),
       {
         name: "التحكم",
         cell: (row) => (
@@ -405,7 +419,6 @@ export default function Users() {
         ),
         ignoreRowClick: true,
         width: "130px",
-        right: true,
       },
     ];
 

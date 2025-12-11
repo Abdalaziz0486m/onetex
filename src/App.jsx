@@ -18,6 +18,7 @@ import Signup from "./pages/regetration/Signup";
 import VerifyOTP from "./pages/regetration/VerifyOTP";
 import UnassignedShipments from "./pages/unassignedShipments/UnassignedShipments";
 import "./App.css";
+import DriverApproval from "./pages/drivers/Driverapproval";
 
 // ✅ Component for protected routes
 function ProtectedRoute({ children }) {
@@ -105,6 +106,7 @@ function App() {
         <Route path="unassignedshipments" element={<UnassignedShipments />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="drivers/driver/:id" element={<Driver />} />
+        <Route path="driverapproval" element={<DriverApproval />} />
         <Route path="drivers/add" element={<AddDrivers />} />
         <Route path="drivers/edit/:id" element={<EditDriver />} />
       </Route>
