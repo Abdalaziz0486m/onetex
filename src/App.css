@@ -173,10 +173,6 @@ header {
   color: var(--text-100-20) !important;
 }
 
-.modal {
-  max-width: 100% !important;
-}
-
 .reg {
   background-image: url("./assets/regBg.jpg");
   background-position: center center;

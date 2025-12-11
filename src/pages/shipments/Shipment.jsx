@@ -2,7 +2,14 @@ import * as React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaArrowLeft } from "react-icons/fa";
-import axios from "axios";
+
+// Import services
+import {
+  getShipmentByTrackingNumber,
+  assignDriverToShipment,
+  deleteShipment,
+} from "../../services/shipmentService";
+import { getAllDrivers } from "../../services/driverService"; // هتحتاج تعمل driver service
 
 // Import components
 import ShipmentStatusBadge from "../../components/shipment/ShipmentStatusBadge";
@@ -26,25 +33,20 @@ export default function ShowShipment() {
   const [actionLoading, setActionLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [showDriverModal, setShowDriverModal] = React.useState(false);
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
-  // Fetch drivers from API
+  // Fetch drivers using service
   const fetchDrivers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-      if (response.data.success) {
-        setDrivers(response.data.data);
+      const response = await getAllDrivers();
+      if (response.success) {
+        setDrivers(response.data);
       }
     } catch (error) {
       console.error("Error fetching drivers:", error);
     }
   }, []);
 
-  // Fetch shipment data from API
+  // Fetch shipment data using service
   const fetchShipment = useCallback(async () => {
     if (!trackingNumber) {
       setLoading(false);
@@ -56,17 +58,10 @@ export default function ShowShipment() {
     setError(null);
 
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}api/shipments/${trackingNumber}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await getShipmentByTrackingNumber(trackingNumber);
 
-      if (response.data && response.data.success) {
-        setShipment(response.data.data);
+      if (response && response.success) {
+        setShipment(response.data);
         setError(null);
       } else {
         setError("لم يتم العثور على الشحنة");
@@ -74,10 +69,16 @@ export default function ShowShipment() {
     } catch (error) {
       console.error("Error fetching shipment:", error);
 
-      if (error.response?.status === 404) {
+      // Handle different error types
+      const errorMessage = error?.message || error?.error;
+
+      if (
+        errorMessage?.includes("404") ||
+        errorMessage?.includes("not found")
+      ) {
         setError("الشحنة غير موجودة");
       } else {
-        setError("خطأ في تحميل بيانات الشحنة");
+        setError(errorMessage || "خطأ في تحميل بيانات الشحنة");
       }
     } finally {
       setLoading(false);
@@ -89,51 +90,48 @@ export default function ShowShipment() {
     fetchDrivers();
   }, [fetchShipment, fetchDrivers]);
 
-  // Handle assign driver
+  // Handle assign driver using service
   const handleAssignDriver = async (driverId) => {
     setActionLoading(true);
     try {
-      const response = await axios.patch(
-        `${API_BASE_URL}api/shipments/${trackingNumber}/assign-driver`,
-        { driverId }
-      );
+      const response = await assignDriverToShipment(trackingNumber, driverId);
 
-      if (response.data.success) {
+      if (response.success) {
         toast.success("تم تعيين السائق بنجاح");
         setShowDriverModal(false);
         fetchShipment(); // Refresh shipment data
       } else {
-        toast.error(response.data.message || "فشل في تعيين السائق");
+        toast.error(response.message || "فشل في تعيين السائق");
       }
     } catch (error) {
       console.error("Error assigning driver:", error);
       const errorMessage =
-        error.response?.data?.message || "خطأ في تعيين السائق";
+        error?.message || error?.error || "خطأ في تعيين السائق";
       toast.error(errorMessage);
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Handle delete shipment
+  // Handle delete shipment using service
   const handleDelete = async () => {
     if (!window.confirm(`هل تريد حذف الشحنة رقم ${trackingNumber}؟`)) return;
 
     setActionLoading(true);
     try {
-      const response = await axios.delete(
-        `${API_BASE_URL}api/shipments/${trackingNumber}`
-      );
+      const response = await deleteShipment(trackingNumber);
 
-      if (response.data.success) {
+      if (response.success) {
         toast.success("تم حذف الشحنة بنجاح");
         navigate("/shipments");
       } else {
-        toast.error("فشل في حذف الشحنة");
+        toast.error(response.message || "فشل في حذف الشحنة");
       }
     } catch (error) {
       console.error("Error deleting shipment:", error);
-      toast.error("خطأ في حذف الشحنة");
+      const errorMessage =
+        error?.message || error?.error || "خطأ في حذف الشحنة";
+      toast.error(errorMessage);
     } finally {
       setActionLoading(false);
     }

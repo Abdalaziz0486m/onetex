@@ -2,32 +2,15 @@ import { useState } from "react";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { Bounce, toast, ToastContainer } from "react-toastify";
-import axios from "axios";
 
-const cities = [
-  { value: "riyadh", label: "الرياض", apiValue: "Riyadh" },
-  { value: "jeddah", label: "جدة", apiValue: "Jeddah" },
-  { value: "dammam", label: "الدمام", apiValue: "Dammam" },
-];
-
-const areas = {
-  riyadh: [
-    { value: "east", label: "الرياض الشرقية", apiValue: "East Riyadh" },
-    { value: "west", label: "الرياض الغربية", apiValue: "West Riyadh" },
-  ],
-  jeddah: [
-    { value: "north", label: "جدة الشمالية", apiValue: "North Jeddah" },
-    { value: "south", label: "جدة الجنوبية", apiValue: "South Jeddah" },
-  ],
-  dammam: [
-    { value: "center", label: "وسط الدمام", apiValue: "Central Dammam" },
-    {
-      value: "industrial",
-      label: "المنطقة الصناعية",
-      apiValue: "Industrial Area",
-    },
-  ],
-};
+// Import driver service
+import {
+  createDriver,
+  prepareDriverPayload,
+  validateDriverData,
+  cities,
+  areas,
+} from "../../services/driverService";
 
 const AddDrivers = () => {
   const [form, setForm] = useState({
@@ -37,6 +20,7 @@ const AddDrivers = () => {
     city: null,
     area: null,
   });
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -60,22 +44,37 @@ const AddDrivers = () => {
       return;
     }
 
-    const payload = {
-      name: form.name,
-      phone: form.phone,
-      licenseNumber: form.licenseNumber,
-      region: form.city.apiValue, // ربط مع API
-      Area: form.area.apiValue, // ربط مع API
-    };
+    // تجهيز البيانات باستخدام الـ service
+    const payload = prepareDriverPayload(form);
 
+    // التحقق من صحة البيانات
+    const validation = validateDriverData(payload);
+    if (!validation.isValid) {
+      // عرض أول خطأ
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError);
+      return;
+    }
+
+    setLoading(true);
     try {
-      await axios.post("https://shipping.onetex.com.sa/api/drivers", payload);
-      toast.success("تم حفظ السائق بنجاح");
-      setTimeout(() => {
-        navigate("/drivers");
-      }, 1500);
-    } catch (err) {
-      toast.error("فشل في حفظ السائق");
+      const response = await createDriver(payload);
+
+      if (response.success || response._id) {
+        toast.success("تم حفظ السائق بنجاح");
+        setTimeout(() => {
+          navigate("/drivers");
+        }, 1500);
+      } else {
+        toast.error(response.message || "فشل في حفظ السائق");
+      }
+    } catch (error) {
+      console.error("Error creating driver:", error);
+      const errorMessage =
+        error?.message || error?.error || "فشل في حفظ السائق";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,6 +98,7 @@ const AddDrivers = () => {
               value={form.name}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
 
@@ -110,7 +110,9 @@ const AddDrivers = () => {
               name="phone"
               value={form.phone}
               onChange={handleChange}
+              placeholder="05xxxxxxxx"
               required
+              disabled={loading}
             />
           </div>
 
@@ -123,6 +125,7 @@ const AddDrivers = () => {
               value={form.licenseNumber}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
 
@@ -134,6 +137,7 @@ const AddDrivers = () => {
               onChange={handleCityChange}
               placeholder="اختر المدينة"
               isSearchable
+              isDisabled={loading}
             />
           </div>
 
@@ -145,13 +149,32 @@ const AddDrivers = () => {
               onChange={handleAreaChange}
               placeholder="اختر الحي"
               isSearchable
-              isDisabled={!form.city}
+              isDisabled={!form.city || loading}
             />
           </div>
 
           <div className="col-12">
-            <button type="submit" className="btn btn-primary">
-              حفظ السائق
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  جاري الحفظ...
+                </>
+              ) : (
+                "حفظ السائق"
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary ms-2"
+              onClick={() => navigate("/drivers")}
+              disabled={loading}
+            >
+              إلغاء
             </button>
           </div>
         </form>

@@ -22,12 +22,11 @@ export default function Login() {
 
   const schema = Joi.object({
     password: Joi.string()
-      .pattern(/^[a-zA-Z0-9]{3,30}$/)
+      .pattern(/^[a-zA-Z0-9 !@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{3,30}$/)
       .required()
       .messages({
-        "string.empty": "الرقم السري مطلوب.",
-        "string.pattern.base":
-          "كلمة المرور لازم تكون بين 3 و30 حرف أو رقم، من غير رموز خاصة.",
+        "string.pattern.base": "يمكن أن يحتوي على حروف وأرقام ورموز",
+        "any.required": "هذا الحقل مطلوب",
       }),
     phone: Joi.string()
       .pattern(

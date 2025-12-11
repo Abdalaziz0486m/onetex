@@ -3,7 +3,16 @@ import DataTable from "react-data-table-component";
 import { useNavigate } from "react-router-dom";
 import { FaEye, FaUserPlus, FaSearch, FaTruck } from "react-icons/fa";
 import { Bounce, toast, ToastContainer } from "react-toastify";
-import axios from "axios";
+
+// Import services
+import {
+  getAllShipments,
+  assignDriverToShipment,
+  mapShipmentData,
+} from "../../services/shipmentService";
+import { getAllDrivers } from "../../services/driverService";
+
+// Import components
 import DriverAssignmentModal from "../../components/shipment/DriverAssignmentModal";
 
 // Status mappings
@@ -31,7 +40,6 @@ export default function UnassignedShipments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Track window width for responsive behavior
   useEffect(() => {
@@ -44,27 +52,17 @@ export default function UnassignedShipments() {
   const fetchUnassignedShipments = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/api/shipments/unassigned`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await getAllShipments({ unassigned: true });
 
-      if (response.data.success) {
-        const mappedShipments = response.data.data.map((shipment) => ({
-          id: shipment._id,
-          trackingNumber: shipment.trackingNumber,
-          sender: shipment.sender,
-          recipient: shipment.recipient,
-          status: shipment.status,
-          shipmentType: shipment.shipmentType,
-          weight: shipment.weight,
-          createdAt: shipment.createdAt,
-        }));
+      if (response.success || Array.isArray(response)) {
+        const shipmentsData = response.data || response;
 
+        // Filter unassigned shipments (without assignedDriver)
+        const unassignedOnly = shipmentsData.filter(
+          (shipment) => !shipment.assignedDriver
+        );
+
+        const mappedShipments = unassignedOnly.map(mapShipmentData);
         setShipments(mappedShipments);
         setFilteredShipments(mappedShipments);
       } else {
@@ -72,30 +70,33 @@ export default function UnassignedShipments() {
       }
     } catch (error) {
       console.error("Error fetching unassigned shipments:", error);
-      toast.error("خطأ في الاتصال بالخادم");
+      const errorMessage =
+        error?.message || error?.error || "خطأ في الاتصال بالخادم";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   // Fetch available drivers
   const fetchDrivers = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await getAllDrivers();
 
-      const driversData = response.data.success
-        ? response.data.data
-        : response.data;
+      const driversData = response.success
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
+
       setDrivers(driversData);
     } catch (error) {
       console.error("Error fetching drivers:", error);
-      toast.error("خطأ في جلب السائقين");
+      const errorMessage =
+        error?.message || error?.error || "خطأ في جلب السائقين";
+      toast.error(errorMessage);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   useEffect(() => {
     fetchUnassignedShipments();
@@ -165,7 +166,7 @@ export default function UnassignedShipments() {
     });
   };
 
-  // Handle assign driver
+  // Handle assign driver using service
   const handleAssignDriver = async (driverId) => {
     if (!selectedShipment || !driverId) {
       toast.error("الرجاء اختيار سائق");
@@ -174,17 +175,13 @@ export default function UnassignedShipments() {
 
     setAssigning(true);
     try {
-      const response = await axios.patch(
-        `${API_BASE_URL}api/shipments/${selectedShipment.trackingNumber}/assign-driver`,
-        { driverId: driverId },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      const response = await assignDriverToShipment(
+        selectedShipment.trackingNumber,
+        driverId
       );
 
-      if (response.data.success) {
+      if (response.success) {
+        // Remove assigned shipment from list
         setShipments((prev) =>
           prev.filter((s) => s.id !== selectedShipment.id)
         );
@@ -192,12 +189,12 @@ export default function UnassignedShipments() {
         setSelectedShipment(null);
         toast.success("تم تعيين السائق بنجاح ✅");
       } else {
-        toast.error(response.data.message || "فشل في تعيين السائق");
+        toast.error(response.message || "فشل في تعيين السائق");
       }
     } catch (error) {
       console.error("Error assigning driver:", error);
       const errorMessage =
-        error.response?.data?.message || "خطأ في تعيين السائق";
+        error?.message || error?.error || "خطأ في تعيين السائق";
       toast.error(errorMessage);
     } finally {
       setAssigning(false);
@@ -206,7 +203,7 @@ export default function UnassignedShipments() {
 
   // Expandable Component for row details
   const ExpandedComponent = ({ data }) => (
-    <div className="p-3 card border-top">
+    <div className="p-3 bg-light border-top">
       <div className="row g-3">
         <div className="col-md-6">
           <h6 className="text-primary mb-2 fw-bold">📦 معلومات المرسل</h6>
@@ -296,7 +293,7 @@ export default function UnassignedShipments() {
       name: "المرسل → المستلم",
       cell: (row) => (
         <div style={{ fontSize: "0.875rem", lineHeight: "1.4" }}>
-          <div className="fw-bold ">
+          <div className="fw-bold text-dark">
             {row.sender?.name || "غير محدد"}
           </div>
           <div className="text-muted small">
@@ -380,29 +377,29 @@ export default function UnassignedShipments() {
   );
 
   return (
-    <div className="p-3">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <button
-          className="btn btn-outline-secondary"
-          onClick={fetchUnassignedShipments}
-          disabled={loading}
-        >
-          {loading ? (
-            <span className="spinner-border spinner-border-sm me-2" />
-          ) : (
-            "تحديث"
-          )}
-        </button>
-        <h2 className="mb-0 text-end">
-          الشحنات غير المعينة ({filteredShipments.length})
-        </h2>
-      </div>
+    <div className="container-fluid p-3">
+      <div className="card p-4">
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <button
+            className="btn btn-outline-secondary"
+            onClick={fetchUnassignedShipments}
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="spinner-border spinner-border-sm me-2" />
+            ) : (
+              "تحديث"
+            )}
+          </button>
+          <h2 className="mb-0">
+            الشحنات غير المعينة ({filteredShipments.length})
+          </h2>
+        </div>
 
-      {/* Search */}
-      <div className="container-fluid">
+        {/* Search */}
         <div className="row mb-4">
-          <div className="col-md-8 col-lg-6">
+          <div className="col-lg-6 col-md-8">
             <div className="input-group">
               <span className="input-group-text">
                 <FaSearch />
@@ -425,13 +422,11 @@ export default function UnassignedShipments() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Data Table */}
-      <div className="card shadow-sm">
+        {/* Info Alert */}
         {windowWidth > 768 && (
           <div
-            className="alert alert-info m-3 mb-0 d-flex align-items-center gap-2"
+            className="alert alert-info d-flex align-items-center gap-2 mb-3"
             style={{ fontSize: "0.9rem" }}
           >
             <span style={{ fontSize: "1.2rem" }}>💡</span>
@@ -441,6 +436,8 @@ export default function UnassignedShipments() {
             </span>
           </div>
         )}
+
+        {/* Data Table */}
         <DataTable
           columns={columns}
           data={filteredShipments}
@@ -496,6 +493,7 @@ export default function UnassignedShipments() {
           setSelectedShipment(null);
         }}
         onAssign={handleAssignDriver}
+        drivers={drivers}
         loading={assigning}
       />
 

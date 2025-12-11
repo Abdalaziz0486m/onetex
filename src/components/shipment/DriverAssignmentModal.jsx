@@ -1,60 +1,56 @@
 import * as React from "react";
 import { FaUserCheck, FaSpinner } from "react-icons/fa";
-import axios from "axios";
+
+// Import driver service
+import { getAllDrivers } from "../../services/driverService";
 
 const { useState, useEffect } = React;
-
 
 export default function DriverAssignmentModal({
   show,
   onClose,
   onAssign,
+  drivers: externalDrivers = null, // يمكن تمرير السائقين من الخارج
   loading: assignLoading = false,
 }) {
   const [selectedDriver, setSelectedDriver] = useState("");
   const [drivers, setDrivers] = useState([]);
   const [fetchingDrivers, setFetchingDrivers] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
-  
-  // Fetch drivers from API when modal opens
+
+  // إذا تم تمرير السائقين من الخارج، استخدمهم بدلاً من جلبهم
   useEffect(() => {
-    if (show) {
+    if (externalDrivers && Array.isArray(externalDrivers)) {
+      setDrivers(externalDrivers);
+    } else if (show && !externalDrivers) {
       fetchDrivers();
     }
-  }, [show]);
+  }, [show, externalDrivers]);
 
+  // Fetch drivers using service
   const fetchDrivers = async () => {
     setFetchingDrivers(true);
     setFetchError(null);
 
     try {
       console.log("Fetching drivers from API...");
-      const response = await axios.get(`${API_BASE_URL}api/drivers`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await getAllDrivers();
 
-      // التحقق من بنية الاستجابة المختلفة
-      if (response.data.success && response.data.data) {
-        // إذا كان الـ response له success property
-        setDrivers(response.data.data);
-        console.log(
-          "Drivers loaded from data.data:",
-          response.data.data.length
-        );
-      } else if (Array.isArray(response.data)) {
-        // إذا كان الـ response مباشرة array
+      if (response.success && response.data) {
         setDrivers(response.data);
-        console.log("Drivers loaded directly:", response.data.length);
+        console.log("Drivers loaded from data:", response.data.length);
+      } else if (Array.isArray(response)) {
+        setDrivers(response);
+        console.log("Drivers loaded directly:", response.length);
       } else {
-        console.log("Unexpected response structure:", response.data);
+        console.log("Unexpected response structure:", response);
         setFetchError("تنسيق غير متوقع لبيانات السائقين");
       }
     } catch (error) {
       console.error("Error fetching drivers:", error);
-      setFetchError("خطأ في تحميل قائمة السائقين");
+      const errorMessage =
+        error?.message || error?.error || "خطأ في تحميل قائمة السائقين";
+      setFetchError(errorMessage);
     } finally {
       setFetchingDrivers(false);
     }
@@ -82,18 +78,45 @@ export default function DriverAssignmentModal({
 
   if (!show) return null;
 
-  const selectedDriverData = drivers.find((d) => d._id === selectedDriver);
+  const selectedDriverData = drivers.find(
+    (d) => d._id === selectedDriver || d.id === selectedDriver
+  );
   const isLoading = fetchingDrivers || assignLoading;
+
+  // إحصائيات السائقين
+  const availableDrivers = drivers.filter(
+    (driver) => driver.isAvailable !== false
+  );
+  const unavailableDrivers = drivers.filter(
+    (driver) => driver.isAvailable === false
+  );
 
   return (
     <div
-      className="modal show d-flex position-fixed top-0 bottom-0 start-0 end-0 justify-content-center align-items-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}
+      className="modal-backdrop show d-flex justify-content-center align-items-center"
+      style={{
+        backgroundColor: "rgba(0,0,0,0.5)",
+        zIndex: 1050,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+      onClick={(e) => {
+        // Close modal when clicking outside
+        if (e.target === e.currentTarget && !isLoading) {
+          handleClose();
+        }
+      }}
     >
-      <div className="modal-dialog">
-        <div className="modal-content">
+      <div className="modal-dialog modal-dialog-centered">
+        <div className="modal modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">تعيين سائق للشحنة</h5>
+            <h5 className="modal-title">
+              <FaUserCheck className="me-2 text-primary" />
+              تعيين سائق للشحنة
+            </h5>
             <button
               type="button"
               className="btn-close"
@@ -106,8 +129,8 @@ export default function DriverAssignmentModal({
             {/* Loading state for fetching drivers */}
             {fetchingDrivers && (
               <div className="text-center p-3">
-                <FaSpinner className="fa-spin me-2" />
-                جاري تحميل قائمة السائقين...
+                <FaSpinner className="fa-spin me-2" size={24} />
+                <div className="mt-2">جاري تحميل قائمة السائقين...</div>
               </div>
             )}
 
@@ -130,97 +153,170 @@ export default function DriverAssignmentModal({
 
             {/* Drivers selection */}
             {!fetchingDrivers && !fetchError && (
-              <div className="mb-3">
-                <label className="form-label">اختر السائق:</label>
-                <select
-                  className="form-select"
-                  value={selectedDriver}
-                  onChange={(e) => setSelectedDriver(e.target.value)}
-                  disabled={assignLoading}
-                >
-                  <option value="">-- اختر سائق --</option>
-                  {drivers.map((driver) => (
-                    <option key={driver._id} value={driver._id}>
-                      {driver.name} - {driver.phone}
-                      {driver.Area && ` (${driver.Area})`}
-                      {driver.region && !driver.Area && ` (${driver.region})`}
-                    </option>
-                  ))}
-                </select>
+              <>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">اختر السائق: *</label>
+                  <select
+                    className="form-select"
+                    value={selectedDriver}
+                    onChange={(e) => setSelectedDriver(e.target.value)}
+                    disabled={assignLoading}
+                  >
+                    <option value="">-- اختر سائق --</option>
 
-                {drivers.length === 0 && (
-                  <small className="text-muted">
-                    لا يوجد سائقين متاحين حالياً
-                  </small>
-                )}
-              </div>
-            )}
+                    {/* السائقين المتاحين */}
+                    {availableDrivers.length > 0 && (
+                      <optgroup label="✅ السائقين المتاحين">
+                        {availableDrivers.map((driver) => (
+                          <option
+                            key={driver._id || driver.id}
+                            value={driver._id || driver.id}
+                          >
+                            {driver.name} - {driver.phone}
+                            {driver.Area && ` (${driver.Area})`}
+                            {driver.region &&
+                              !driver.Area &&
+                              ` (${driver.region})`}
+                            {driver.assignedShipments?.length > 0 &&
+                              ` - ${driver.assignedShipments.length} شحنات`}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
 
-            {/* Selected driver preview */}
-            {selectedDriverData && (
-              <div
-                className={`alert ${
-                  selectedDriverData.isAvailable
-                    ? "alert-info"
-                    : "alert-warning"
-                }`}
-              >
-                <strong>السائق المختار:</strong>
-                <div className="mt-2">
-                  <div>
-                    <strong>الاسم:</strong> {selectedDriverData.name}
-                  </div>
-                  <div>
-                    <strong>الهاتف:</strong> {selectedDriverData.phone}
-                  </div>
-                  {selectedDriverData.licenseNumber && (
-                    <div>
-                      <strong>رقم الرخصة:</strong>{" "}
-                      {selectedDriverData.licenseNumber}
+                    {/* السائقين غير المتاحين */}
+                    {unavailableDrivers.length > 0 && (
+                      <optgroup label="⛔ السائقين غير المتاحين">
+                        {unavailableDrivers.map((driver) => (
+                          <option
+                            key={driver._id || driver.id}
+                            value={driver._id || driver.id}
+                            disabled
+                          >
+                            {driver.name} - {driver.phone}
+                            {driver.Area && ` (${driver.Area})`}
+                            {driver.region &&
+                              !driver.Area &&
+                              ` (${driver.region})`}
+                            {driver.assignedShipments?.length > 0 &&
+                              ` - ${driver.assignedShipments.length} شحنات`}
+                            {" (غير متاح)"}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+
+                  {drivers.length === 0 && (
+                    <div className="alert alert-warning mt-2 mb-0">
+                      <small>لا يوجد سائقين حالياً</small>
                     </div>
                   )}
-                  {selectedDriverData.region && (
-                    <div>
-                      <strong>المنطقة:</strong> {selectedDriverData.region}
-                    </div>
-                  )}
-                  {selectedDriverData.Area && (
-                    <div>
-                      <strong>المنطقة المحددة:</strong>{" "}
-                      {selectedDriverData.Area}
-                    </div>
-                  )}
-                  {selectedDriverData.hasOwnProperty("isAvailable") && (
-                    <div>
-                      <strong>الحالة:</strong>
-                      <span
-                        className={`badge ms-2 ${
-                          selectedDriverData.isAvailable
-                            ? "bg-success"
-                            : "bg-danger"
-                        }`}
-                      >
-                        {selectedDriverData.isAvailable ? "متاح" : "غير متاح"}
-                      </span>
-                    </div>
-                  )}
-                  {selectedDriverData.assignedShipments && (
-                    <div>
-                      <strong>الشحنات المعينة:</strong>
-                      <span className="badge bg-info ms-2">
-                        {selectedDriverData.assignedShipments.length}
-                      </span>
-                    </div>
+
+                  {drivers.length > 0 && (
+                    <small className="text-muted d-block mt-1">
+                      إجمالي السائقين: {drivers.length}
+                      {availableDrivers.length > 0 && (
+                        <span className="text-success mx-1">
+                          • متاح: {availableDrivers.length}
+                        </span>
+                      )}
+                      {unavailableDrivers.length > 0 && (
+                        <span className="text-danger">
+                          • غير متاح: {unavailableDrivers.length}
+                        </span>
+                      )}
+                    </small>
                   )}
                 </div>
-                {!selectedDriverData.isAvailable && (
-                  <div className="mt-2">
-                    <small className="text-warning">
-                      ⚠️ هذا السائق غير متاح حالياً ولا يمكن تعيينه
-                    </small>
+
+                {/* Selected driver preview */}
+                {selectedDriverData && (
+                  <div
+                    className={`alert ${
+                      selectedDriverData.isAvailable !== false
+                        ? "alert-info"
+                        : "alert-warning"
+                    } mb-0`}
+                  >
+                    <strong className="d-block mb-2">
+                      📋 معلومات السائق المختار:
+                    </strong>
+                    <div className="row g-2">
+                      <div className="col-6">
+                        <small className="text-muted">الاسم:</small>
+                        <div className="fw-bold">{selectedDriverData.name}</div>
+                      </div>
+                      <div className="col-6">
+                        <small className="text-muted">الهاتف:</small>
+                        <div className="fw-bold">
+                          {selectedDriverData.phone}
+                        </div>
+                      </div>
+                      {selectedDriverData.licenseNumber && (
+                        <div className="col-6">
+                          <small className="text-muted">رقم الرخصة:</small>
+                          <div className="fw-bold">
+                            {selectedDriverData.licenseNumber}
+                          </div>
+                        </div>
+                      )}
+                      {selectedDriverData.region && (
+                        <div className="col-6">
+                          <small className="text-muted">المنطقة:</small>
+                          <div className="fw-bold">
+                            {selectedDriverData.region}
+                          </div>
+                        </div>
+                      )}
+                      {selectedDriverData.Area && (
+                        <div className="col-12">
+                          <small className="text-muted">الحي:</small>
+                          <div className="fw-bold">
+                            {selectedDriverData.Area}
+                          </div>
+                        </div>
+                      )}
+                      <div className="col-12">
+                        <hr className="my-2" />
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <small className="text-muted">الحالة:</small>
+                            <span
+                              className={`badge ms-2 ${
+                                selectedDriverData.isAvailable !== false
+                                  ? "bg-success"
+                                  : "bg-danger"
+                              }`}
+                            >
+                              {selectedDriverData.isAvailable !== false
+                                ? "متاح"
+                                : "غير متاح"}
+                            </span>
+                          </div>
+                          {selectedDriverData.assignedShipments && (
+                            <div>
+                              <small className="text-muted">
+                                الشحنات الحالية:
+                              </small>
+                              <span className="badge bg-info ms-2">
+                                {selectedDriverData.assignedShipments.length}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {selectedDriverData.isAvailable === false && (
+                      <div className="mt-2 pt-2 border-top">
+                        <small className="text-warning">
+                          ⚠️ هذا السائق غير متاح حالياً ولا يمكن تعيينه
+                        </small>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
@@ -242,7 +338,7 @@ export default function DriverAssignmentModal({
                 !selectedDriver ||
                 isLoading ||
                 fetchError ||
-                (selectedDriverData && !selectedDriverData.isAvailable)
+                (selectedDriverData && selectedDriverData.isAvailable === false)
               }
             >
               {assignLoading ? (

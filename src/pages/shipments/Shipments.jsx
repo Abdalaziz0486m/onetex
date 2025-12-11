@@ -4,7 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { FaEdit, FaTrash, FaEye, FaPlus, FaSearch } from "react-icons/fa";
 import ConfirmModal from "../../components/ui/ConfirmModal";
 import { Bounce, toast, ToastContainer } from "react-toastify";
-import axios from "axios";
+import {
+  getAllShipments,
+  deleteShipment,
+  mapShipmentData,
+} from "../../services/shipmentService";
 
 // Status mappings
 const STATUS_TRANSLATIONS = {
@@ -31,7 +35,6 @@ export default function Shipments() {
   const [statusFilter, setStatusFilter] = useState("");
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL;
 
   // Track window width for responsive behavior
   useEffect(() => {
@@ -40,29 +43,14 @@ export default function Shipments() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Fetch shipments from API
+  // Fetch shipments from API using service
   const fetchShipments = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}api/shipments`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await getAllShipments();
 
-      if (response.data.success) {
-        const mappedShipments = response.data.data.map((shipment) => ({
-          id: shipment._id,
-          trackingNumber: shipment.trackingNumber,
-          sender: shipment.sender,
-          recipient: shipment.recipient,
-          status: shipment.status,
-          shipmentType: shipment.shipmentType,
-          weight: shipment.weight,
-          createdAt: shipment.createdAt,
-          updatedAt: shipment.updatedAt,
-        }));
-
+      if (response.success) {
+        const mappedShipments = response.data.map(mapShipmentData);
         setShipments(mappedShipments);
         setFilteredShipments(mappedShipments);
       } else {
@@ -70,11 +58,13 @@ export default function Shipments() {
       }
     } catch (error) {
       console.error("Error fetching shipments:", error);
-      toast.error("خطأ في الاتصال بالخادم");
+      const errorMessage =
+        error?.message || error?.error || "خطأ في الاتصال بالخادم";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   useEffect(() => {
     fetchShipments();
@@ -313,33 +303,27 @@ export default function Shipments() {
     },
   ];
 
-  // Handle delete shipment
+  // Handle delete shipment using service
   const handleDelete = async () => {
     if (!selectedShipment) return;
 
     setDeleting(true);
     try {
-      const response = await axios.delete(
-        `${API_BASE_URL}/shipments/${selectedShipment.trackingNumber}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      const response = await deleteShipment(selectedShipment.trackingNumber);
 
-      if (response.data.success) {
+      if (response.success) {
         setShipments((prev) =>
           prev.filter((s) => s.id !== selectedShipment.id)
         );
         setShowModal(false);
         toast.success("تم حذف الشحنة بنجاح ✅");
       } else {
-        toast.error(response.data.message || "فشل في حذف الشحنة");
+        toast.error(response.message || "فشل في حذف الشحنة");
       }
     } catch (error) {
       console.error("Error deleting shipment:", error);
-      const errorMessage = error.response?.data?.message || "خطأ في حذف الشحنة";
+      const errorMessage =
+        error?.message || error?.error || "خطأ في حذف الشحنة";
       toast.error(errorMessage);
     } finally {
       setDeleting(false);

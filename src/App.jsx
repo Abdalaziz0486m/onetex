@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Home from "./pages/Home";
-import Users from "./pages/Users";
+import Users from "./pages/users/Users";
 import Shipments from "./pages/shipments/Shipments";
 import Shipment from "./pages/shipments/Shipment";
 import AddShipments from "./pages/shipments/AddShipments";

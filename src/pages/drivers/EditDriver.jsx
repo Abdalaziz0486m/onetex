@@ -1,34 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Select from "react-select";
-import axios from "axios";
-import { toast, ToastContainer } from "react-toastify";
+import { toast, ToastContainer, Bounce } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { FaArrowLeft } from "react-icons/fa";
 
-const cities = [
-  { value: "riyadh", label: "الرياض", apiValue: "Riyadh" },
-  { value: "jeddah", label: "جدة", apiValue: "Jeddah" },
-  { value: "dammam", label: "الدمام", apiValue: "Dammam" },
-];
+// Import driver service
+import {
+  getDriverById,
+  updateDriver,
+  prepareDriverPayload,
+  validateDriverData,
+  cities,
+  areas,
+  getCityOptionFromApiValue,
+  getAreaOptionFromApiValue,
+} from "../../services/driverService";
 
-const areas = {
-  riyadh: [
-    { value: "east", label: "الرياض الشرقية", apiValue: "East Riyadh" },
-    { value: "west", label: "الرياض الغربية", apiValue: "West Riyadh" },
-  ],
-  jeddah: [
-    { value: "north", label: "جدة الشمالية", apiValue: "North Jeddah" },
-    { value: "south", label: "جدة الجنوبية", apiValue: "South Jeddah" },
-  ],
-  dammam: [
-    { value: "center", label: "وسط الدمام", apiValue: "Central Dammam" },
-    {
-      value: "industrial",
-      label: "المنطقة الصناعية",
-      apiValue: "Industrial Area",
-    },
-  ],
-};
+// Import components
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import ErrorMessage from "../../components/ui/ErrorMessage";
 
 const EditDriver = () => {
   const [form, setForm] = useState({
@@ -38,44 +29,58 @@ const EditDriver = () => {
     city: null,
     area: null,
   });
-  const baseUrl = import.meta.env.VITE_BASE_URL;
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const { id } = useParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchDriver = async () => {
-      try {
-        const { data } = await axios.get(`${baseUrl}/api/drivers/${id}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+  // جلب بيانات السائق
+  const fetchDriver = useCallback(async () => {
+    if (!id) {
+      setLoading(false);
+      setError("معرف السائق غير موجود");
+      return;
+    }
 
-        const driver = data; // الـ API بيرجع السائق مباشرة
+    setLoading(true);
+    setError(null);
 
-        // نحاول نطابق region مع cityOptions
-        const cityOption = cities.find((c) => c.apiValue === driver.region);
-        // ثم نطابق Area مع خيارات المدينة
+    try {
+      const driverData = await getDriverById(id);
+
+      if (driverData && driverData._id) {
+        // استخدام helper functions من الـ service
+        const cityOption = getCityOptionFromApiValue(driverData.region);
         const areaOption = cityOption
-          ? areas[cityOption.value]?.find((a) => a.apiValue === driver.Area)
+          ? getAreaOptionFromApiValue(cityOption.value, driverData.Area)
           : null;
 
         setForm({
-          name: driver.name,
-          phone: driver.phone,
-          licenseNumber: driver.licenseNumber,
-          city: cityOption || null,
-          area: areaOption || null,
+          name: driverData.name,
+          phone: driverData.phone,
+          licenseNumber: driverData.licenseNumber,
+          city: cityOption,
+          area: areaOption,
         });
-      } catch (err) {
-        toast.error("فشل في تحميل بيانات السائق");
-        console.error(err);
+      } else {
+        setError("لم يتم العثور على السائق");
       }
-    };
-
-    fetchDriver();
+    } catch (error) {
+      console.error("Error fetching driver:", error);
+      const errorMessage =
+        error?.message || error?.error || "فشل في تحميل بيانات السائق";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchDriver();
+  }, [fetchDriver]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -91,98 +96,196 @@ const EditDriver = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.city || !form.area) {
+      toast.error("يجب اختيار المدينة والحي");
+      return;
+    }
+
+    // تجهيز البيانات باستخدام الـ service
+    const payload = prepareDriverPayload(form);
+
+    // التحقق من صحة البيانات
+    const validation = validateDriverData(payload);
+    if (!validation.isValid) {
+      // عرض أول خطأ
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError);
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const payload = {
-        name: form.name,
-        phone: form.phone,
-        licenseNumber: form.licenseNumber,
-        region: form.city?.apiValue,
-        Area: form.area?.apiValue,
-      };
+      const response = await updateDriver(id, payload);
 
-      await axios.put(`${baseUrl}b/api/drivers/${id}`, payload);
-
-      toast.success("تم تحديث بيانات السائق بنجاح");
-      setTimeout(() => {
-        navigate("/drivers");
-      }, 1500);
-    } catch (err) {
-      toast.error("فشل في تعديل بيانات السائق");
-      console.error(err);
+      if (response.success || response._id) {
+        toast.success("تم تحديث بيانات السائق بنجاح");
+        setTimeout(() => {
+          navigate("/drivers");
+        }, 1500);
+      } else {
+        toast.error(response.message || "فشل في تعديل بيانات السائق");
+      }
+    } catch (error) {
+      console.error("Error updating driver:", error);
+      const errorMessage =
+        error?.message || error?.error || "فشل في تعديل بيانات السائق";
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // Loading state
+  if (loading) {
+    return <LoadingSpinner message="جاري تحميل بيانات السائق..." />;
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <ErrorMessage
+        error={error}
+        onRetry={fetchDriver}
+        onBack={() => navigate("/drivers")}
+      />
+    );
+  }
+
   return (
     <div className="container mt-4">
-      <h3 className="mb-4">تعديل بيانات السائق</h3>
-      <form onSubmit={handleSubmit} className="row g-3">
-        <div className="col-md-6">
-          <label className="form-label">الاسم</label>
-          <input
-            type="text"
-            className="form-control"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            required
-          />
-        </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={1500}
+        rtl
+        theme="light"
+        transition={Bounce}
+      />
 
-        <div className="col-md-6">
-          <label className="form-label">رقم الجوال</label>
-          <input
-            type="text"
-            className="form-control"
-            name="phone"
-            value={form.phone}
-            onChange={handleChange}
-            required
-          />
-        </div>
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => navigate("/drivers")}
+          disabled={submitting}
+        >
+          <FaArrowLeft className="me-2" />
+          العودة للقائمة
+        </button>
+        <h3 className="mb-0">تعديل بيانات السائق</h3>
+      </div>
 
-        <div className="col-md-6">
-          <label className="form-label">رقم الرخصة</label>
-          <input
-            type="text"
-            className="form-control"
-            name="licenseNumber"
-            value={form.licenseNumber}
-            onChange={handleChange}
-            required
-          />
-        </div>
+      <div className="card p-4">
+        <form onSubmit={handleSubmit} className="row g-3">
+          <div className="col-md-6">
+            <label className="form-label">الاسم *</label>
+            <input
+              type="text"
+              className="form-control"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              required
+              disabled={submitting}
+            />
+          </div>
 
-        <div className="col-md-6">
-          <label className="form-label">المدينة</label>
-          <Select
-            options={cities}
-            value={form.city}
-            onChange={handleCityChange}
-            placeholder="اختر المدينة"
-            isSearchable
-          />
-        </div>
+          <div className="col-md-6">
+            <label className="form-label">رقم الجوال *</label>
+            <input
+              type="text"
+              className="form-control"
+              name="phone"
+              value={form.phone}
+              onChange={handleChange}
+              placeholder="05xxxxxxxx"
+              required
+              disabled={submitting}
+            />
+          </div>
 
-        <div className="col-md-6">
-          <label className="form-label">الحي</label>
-          <Select
-            options={form.city ? areas[form.city.value] : []}
-            value={form.area}
-            onChange={handleAreaChange}
-            placeholder="اختر الحي"
-            isSearchable
-            isDisabled={!form.city}
-          />
-        </div>
+          <div className="col-md-6">
+            <label className="form-label">رقم الرخصة *</label>
+            <input
+              type="text"
+              className="form-control"
+              name="licenseNumber"
+              value={form.licenseNumber}
+              onChange={handleChange}
+              required
+              disabled={submitting}
+            />
+          </div>
 
-        <div className="col-12">
-          <button type="submit" className="btn btn-primary">
-            حفظ التعديلات
-          </button>
-        </div>
-      </form>
+          <div className="col-md-6">
+            <label className="form-label">المدينة *</label>
+            <Select
+              options={cities}
+              value={form.city}
+              onChange={handleCityChange}
+              placeholder="اختر المدينة"
+              isSearchable
+              isDisabled={submitting}
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: "38px",
+                }),
+              }}
+            />
+          </div>
 
-      <ToastContainer position="top-right" autoClose={1500} rtl />
+          <div className="col-md-6">
+            <label className="form-label">الحي *</label>
+            <Select
+              options={form.city ? areas[form.city.value] : []}
+              value={form.area}
+              onChange={handleAreaChange}
+              placeholder="اختر الحي"
+              isSearchable
+              isDisabled={!form.city || submitting}
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: "38px",
+                }),
+              }}
+            />
+          </div>
+
+          <div className="col-12">
+            <hr className="my-3" />
+            <div className="d-flex gap-2">
+              <button
+                type="submit"
+                className="btn btn-primary px-4"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <span className="me-2">✓</span>
+                    حفظ التعديلات
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary px-4"
+                onClick={() => navigate("/drivers")}
+                disabled={submitting}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
