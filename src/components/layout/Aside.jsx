@@ -79,6 +79,9 @@ export default function Aside({ closeSidebar, toggleSidebar, sidebarOpen }) {
             </span>
           )}
         </NavLink>
+        <NavLink to="/cities" className="nav-link">
+          🏙️ المدن
+        </NavLink>
       </nav>
     </aside>
   );
