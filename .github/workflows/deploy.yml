@@ -1,8 +1,8 @@
-name: Deploy versai App
+name: Deploy onetex App
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
