@@ -62,7 +62,7 @@ git fetch origin
 
 # Check if there are new commits
 LOCAL=$(git rev-parse HEAD)
-REMOTE=$(git rev-parse origin/master)  # Change 'main' to your branch name if different
+REMOTE=$(git rev-parse origin/main)  # Change 'main' to your branch name if different
 
 if [ "$LOCAL" = "$REMOTE" ]; then
     print_status "No new commits found. Deployment not needed."
@@ -73,7 +73,7 @@ print_status "New commits found. Starting deployment..."
 
 # Pull latest changes
 print_status "Pulling latest changes..."
-if git pull origin master; then  # Change 'main' to your branch name if different
+if git pull origin main; then  # Change 'main' to your branch name if different
     print_status "Successfully pulled latest changes"
 else
     print_error "Failed to pull latest changes"
