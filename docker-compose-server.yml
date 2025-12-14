@@ -1,0 +1,42 @@
+version: '3.8'
+
+networks:
+  proxy:
+    name: proxy
+    external: true
+    driver_opts:
+      com.docker.network.driver.mtu: 1400
+
+services:
+  onetex-app:
+    build:
+      context: .
+      args:
+        # Ensure this matches the API URL you want baked into the static build
+        VITE_BASE_URL: "https://api.onetex.com.sa" 
+    networks:
+      - proxy
+    # No 'ports' needed; Traefik handles ingress
+    labels:
+      # --- Traefik Labels ---
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      # --- HTTP Router ---
+      - "traefik.http.routers.onetex-app-http.entrypoints=http"
+      - "traefik.http.routers.onetex-app-http.rule=Host(`onetex.com.sa`)"
+      - "traefik.http.routers.onetex-app-http.middlewares=https-redirect@docker"
+      - "traefik.http.routers.onetex-app-http.service=onetex-app-service"
+
+      # --- HTTPS Router ---
+      - "traefik.http.routers.onetex-app-https.entrypoints=https"
+      - "traefik.http.routers.onetex-app-https.rule=Host(`onetex.com.sa`)"
+      - "traefik.http.routers.onetex-app-https.tls=true"
+      - "traefik.http.routers.onetex-app-https.tls.certresolver=le"
+      - "traefik.http.routers.onetex-app-https.service=onetex-app-service"
+
+      # --- Service Definition ---
+      # CRITICAL: Set to 80 because your Dockerfile uses Nginx (EXPOSE 80)
+      - "traefik.http.services.onetex-app-service.loadbalancer.server.port=80"
+    
+    restart: unless-stopped
