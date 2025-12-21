@@ -1,10 +1,10 @@
 // src/services/cityService.js
 import axios from "axios";
 
-// تعيين الـ baseURL في axios
+// ========== Configuration ==========
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 
-// إعداد الـ token
+// ========== Authentication Management ==========
 const token = localStorage.getItem("token");
 if (token) {
   axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -12,7 +12,10 @@ if (token) {
   delete axios.defaults.headers.common["Authorization"];
 }
 
-// دالة لتحديث الـ token ديناميكيًا
+/**
+ * Update authentication token dynamically
+ * @param {String} token - JWT token
+ */
 export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem("token", token);
@@ -23,40 +26,100 @@ export const setAuthToken = (token) => {
   }
 };
 
-// ==================== الخدمات ====================
+// ========== Data Transformation Layer ==========
 
 /**
- * جلب جميع المدن
- * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
- * @returns {Promise<Object>} - قائمة المدن
+ * Transform city data from API format to app format
+ * @param {Object} city - City object from API
+ * @returns {Object|null} Transformed city object
+ */
+const transformCityData = (city) => {
+  if (!city) return null;
+
+  return {
+    id: city._id || city.id,
+    name: city.name || "",
+    nameEn: city.nameEn || "",
+    region: city.region || "",
+    type: city.type || "city",
+    coordinates: {
+      latitude: city.coordinates?.latitude || 0,
+      longitude: city.coordinates?.longitude || 0,
+    },
+    localDelivery: {
+      small: city.localDelivery?.small || 0,
+      medium: city.localDelivery?.medium || 0,
+      large: city.localDelivery?.large || 0,
+    },
+    shippingTo: city.shippingTo || {},
+    isActive: city.isActive ?? true,
+    createdAt: city.createdAt,
+    updatedAt: city.updatedAt,
+  };
+};
+
+/**
+ * Transform array of cities from API format to app format
+ * @param {Array} cities - Array of city objects
+ * @returns {Array} Transformed cities array
+ */
+const transformCitiesData = (cities) => {
+  if (!Array.isArray(cities)) return [];
+  return cities.map(transformCityData);
+};
+
+// ========== CRUD Operations ==========
+
+/**
+ * Get all cities with optional filters
+ * @param {Object} params - Query parameters (filters, pagination, etc.)
+ * @returns {Promise<Object>} Response with cities list
  */
 export const getAllCities = async (params = {}) => {
   try {
     const response = await axios.get("/api/cities", { params });
-    return response.data;
+
+    // Transform response data if exists
+    if (response.data?.success && response.data?.data) {
+      if (Array.isArray(response.data.data)) {
+        response.data.data = transformCitiesData(response.data.data);
+      } else if (response.data.data.cities) {
+        response.data.data.cities = transformCitiesData(
+          response.data.data.cities
+        );
+      }
+    }
+
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب مدينة معينة بواسطة ID
- * @param {String} cityId - معرف المدينة
- * @returns {Promise<Object>} - بيانات المدينة
+ * Get city by ID
+ * @param {String} cityId - City ID
+ * @returns {Promise<Object>} Response with city data
  */
 export const getCityById = async (cityId) => {
   try {
     const response = await axios.get(`/api/cities/${cityId}`);
-    return response.data;
+
+    // Transform response data
+    if (response.data?.success && response.data?.data) {
+      response.data.data = transformCityData(response.data.data);
+    }
+
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * إنشاء مدينة جديدة
- * @param {Object} cityData - بيانات المدينة
- * @returns {Promise<Object>} - المدينة المنشأة
+ * Create new city
+ * @param {Object} cityData - City data
+ * @returns {Promise<Object>} Response with created city
  */
 export const createCity = async (cityData) => {
   try {
@@ -68,10 +131,10 @@ export const createCity = async (cityData) => {
 };
 
 /**
- * تحديث مدينة معينة
- * @param {String} cityId - معرف المدينة
- * @param {Object} cityData - البيانات المحدثة
- * @returns {Promise<Object>} - المدينة المحدثة
+ * Update existing city
+ * @param {String} cityId - City ID
+ * @param {Object} cityData - Updated city data
+ * @returns {Promise<Object>} Response with updated city
  */
 export const updateCity = async (cityId, cityData) => {
   try {
@@ -83,9 +146,9 @@ export const updateCity = async (cityId, cityData) => {
 };
 
 /**
- * حذف مدينة معينة
- * @param {String} cityId - معرف المدينة
- * @returns {Promise<Object>} - رسالة التأكيد
+ * Delete city
+ * @param {String} cityId - City ID
+ * @returns {Promise<Object>} Response confirming deletion
  */
 export const deleteCity = async (cityId) => {
   try {
@@ -96,11 +159,13 @@ export const deleteCity = async (cityId) => {
   }
 };
 
+// ========== Shipping Operations ==========
+
 /**
- * حساب تكلفة الشحن بين مدينتين
- * @param {String} fromCity - المدينة المرسلة
- * @param {String} toCity - المدينة المستلمة
- * @returns {Promise<Object>} - تفاصيل التكلفة
+ * Get shipping rate between two cities
+ * @param {String} fromCity - Sender city
+ * @param {String} toCity - Recipient city
+ * @returns {Promise<Object>} Response with shipping rate details
  */
 export const getShippingRate = async (fromCity, toCity) => {
   try {
@@ -114,10 +179,10 @@ export const getShippingRate = async (fromCity, toCity) => {
 };
 
 /**
- * إضافة أو تحديث مسار شحن لمدينة معينة
- * @param {String} cityId - معرف المدينة
- * @param {Object} routeData - بيانات المسار (destinationCity, distanceKm, small, medium, large)
- * @returns {Promise<Object>} - المدينة المحدثة
+ * Add or update shipping route for a city
+ * @param {String} cityId - City ID
+ * @param {Object} routeData - Route data (destinationCity, distanceKm, small, medium, large)
+ * @returns {Promise<Object>} Response with updated city
  */
 export const addOrUpdateShippingRoute = async (cityId, routeData) => {
   try {
@@ -132,10 +197,10 @@ export const addOrUpdateShippingRoute = async (cityId, routeData) => {
 };
 
 /**
- * حذف مسار شحن من مدينة معينة
- * @param {String} cityId - معرف المدينة
- * @param {String} destinationCity - اسم المدينة المستهدفة
- * @returns {Promise<Object>} - المدينة المحدثة
+ * Delete shipping route from a city
+ * @param {String} cityId - City ID
+ * @param {String} destinationCity - Destination city name
+ * @returns {Promise<Object>} Response with updated city
  */
 export const deleteShippingRoute = async (cityId, destinationCity) => {
   try {
@@ -151,78 +216,157 @@ export const deleteShippingRoute = async (cityId, destinationCity) => {
   }
 };
 
+// ========== Batch Operations ==========
+
 /**
- * جلب المدن النشطة فقط
- * @returns {Promise<Object>} - قائمة المدن النشطة
+ * Create multiple cities at once
+ * @param {Array} citiesData - Array of city objects
+ * @returns {Promise<Object>} Response with created cities
+ */
+export const batchCreateCities = async (citiesData) => {
+  try {
+    const response = await axios.post("/api/cities/batch", {
+      cities: citiesData,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Update multiple cities at once
+ * @param {Array} updates - Array of update objects with id and data
+ * @returns {Promise<Object>} Response with updated cities
+ */
+export const batchUpdateCities = async (updates) => {
+  try {
+    const response = await axios.patch("/api/cities/batch", { updates });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Delete multiple cities at once
+ * @param {Array} cityIds - Array of city IDs
+ * @returns {Promise<Object>} Response confirming deletion
+ */
+export const batchDeleteCities = async (cityIds) => {
+  try {
+    const response = await axios.post("/api/cities/batch-delete", {
+      cityIds,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// ========== Search & Filter Operations ==========
+
+/**
+ * Get active cities only
+ * @returns {Promise<Object>} Response with active cities
  */
 export const getActiveCities = async () => {
   try {
-    const response = await axios.get("/api/cities", {
-      params: { isActive: true },
-    });
-    return response.data;
+    const response = await getAllCities({ isActive: true });
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب المدن حسب المنطقة
- * @param {String} region - اسم المنطقة
- * @returns {Promise<Object>} - قائمة المدن
+ * Get cities by region
+ * @param {String} region - Region name
+ * @returns {Promise<Object>} Response with filtered cities
  */
 export const getCitiesByRegion = async (region) => {
   try {
-    const response = await axios.get("/api/cities", {
-      params: { region },
-    });
-    return response.data;
+    const response = await getAllCities({ region });
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب المدن حسب النوع
- * @param {String} type - نوع المدينة (capital, holy_city, major_city, city)
- * @returns {Promise<Object>} - قائمة المدن
+ * Get cities by type
+ * @param {String} type - City type (capital, holy_city, major_city, city)
+ * @returns {Promise<Object>} Response with filtered cities
  */
 export const getCitiesByType = async (type) => {
   try {
-    const response = await axios.get("/api/cities", {
-      params: { type },
-    });
-    return response.data;
+    const response = await getAllCities({ type });
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * معالجة بيانات المدينة من API إلى format مناسب للعرض
- * @param {Object} apiCity - بيانات المدينة من API
- * @returns {Object} - بيانات المدينة المعالجة
+ * Search cities by keyword
+ * @param {String} keyword - Search keyword
+ * @returns {Promise<Object>} Response with filtered cities
  */
-export const mapCityData = (apiCity) => {
-  return {
-    id: apiCity._id,
-    name: apiCity.name,
-    nameEn: apiCity.nameEn,
-    region: apiCity.region,
-    type: apiCity.type,
-    coordinates: apiCity.coordinates,
-    localDelivery: apiCity.localDelivery,
-    shippingTo: apiCity.shippingTo || {},
-    isActive: apiCity.isActive,
-    createdAt: apiCity.createdAt,
-    updatedAt: apiCity.updatedAt,
-  };
+export const searchCities = async (keyword) => {
+  try {
+    const response = await getAllCities({ search: keyword });
+    return response;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
 };
 
 /**
- * تجهيز بيانات المدينة للإرسال إلى API
- * @param {Object} formData - بيانات النموذج
- * @returns {Object} - البيانات المجهزة للإرسال
+ * Filter cities by name (client-side filtering)
+ * @param {Array} cities - Cities list
+ * @param {String} searchTerm - Search term
+ * @returns {Array} Filtered cities
+ */
+export const filterCitiesByName = (cities, searchTerm) => {
+  if (!searchTerm || searchTerm.trim() === "") return cities;
+  const term = searchTerm.toLowerCase().trim();
+  return cities.filter(
+    (city) =>
+      city.name.toLowerCase().includes(term) ||
+      city.nameEn.toLowerCase().includes(term) ||
+      city.region.toLowerCase().includes(term)
+  );
+};
+
+/**
+ * Sort cities by priority (capitals first, then holy cities, etc.)
+ * @param {Array} cities - Cities list
+ * @returns {Array} Sorted cities
+ */
+export const sortCitiesByPriority = (cities) => {
+  const priorityOrder = {
+    capital: 1,
+    holy_city: 2,
+    major_city: 3,
+    city: 4,
+  };
+
+  return [...cities].sort((a, b) => {
+    const priorityA = priorityOrder[a.type] || 999;
+    const priorityB = priorityOrder[b.type] || 999;
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    return a.name.localeCompare(b.name, "ar");
+  });
+};
+
+// ========== Utilities ==========
+
+/**
+ * Prepare city data for API submission
+ * @param {Object} formData - Form data from UI
+ * @returns {Object} Prepared payload for API
  */
 export const prepareCityPayload = (formData) => {
   const payload = {
@@ -241,12 +385,12 @@ export const prepareCityPayload = (formData) => {
     },
   };
 
-  // إضافة shippingTo إذا كانت موجودة
+  // Add shippingTo if exists
   if (formData.shippingTo && Object.keys(formData.shippingTo).length > 0) {
     payload.shippingTo = formData.shippingTo;
   }
 
-  // إضافة isActive إذا كانت موجودة
+  // Add isActive if exists
   if (formData.hasOwnProperty("isActive")) {
     payload.isActive = formData.isActive;
   }
@@ -255,9 +399,34 @@ export const prepareCityPayload = (formData) => {
 };
 
 /**
- * التحقق من صحة بيانات المدينة
- * @param {Object} cityData - بيانات المدينة
- * @returns {Object} - {isValid: boolean, errors: Object}
+ * Map city data for display in UI
+ * @param {Object} apiCity - City data from API
+ * @returns {Object} Mapped city for UI display
+ */
+export const mapCityForDisplay = (apiCity) => {
+  return {
+    id: apiCity._id || apiCity.id,
+    name: apiCity.name || "",
+    nameEn: apiCity.nameEn || "",
+    region: apiCity.region || "",
+    type: apiCity.type || "city",
+    typeLabel: formatCityType(apiCity.type),
+    latitude: apiCity.coordinates?.latitude || 0,
+    longitude: apiCity.coordinates?.longitude || 0,
+    localDeliverySmall: apiCity.localDelivery?.small || 0,
+    localDeliveryMedium: apiCity.localDelivery?.medium || 0,
+    localDeliveryLarge: apiCity.localDelivery?.large || 0,
+    shippingRoutesCount: Object.keys(apiCity.shippingTo || {}).length,
+    isActive: apiCity.isActive ?? true,
+    createdAt: apiCity.createdAt,
+    updatedAt: apiCity.updatedAt,
+  };
+};
+
+/**
+ * Validate city data before submission
+ * @param {Object} cityData - City data to validate
+ * @returns {Object} Validation result {isValid: boolean, errors: Object}
  */
 export const validateCityData = (cityData) => {
   const errors = {};
@@ -316,9 +485,9 @@ export const validateCityData = (cityData) => {
 };
 
 /**
- * التحقق من صحة بيانات مسار الشحن
- * @param {Object} routeData - بيانات المسار
- * @returns {Object} - {isValid: boolean, errors: Object}
+ * Validate shipping route data before submission
+ * @param {Object} routeData - Route data to validate
+ * @returns {Object} Validation result {isValid: boolean, errors: Object}
  */
 export const validateShippingRouteData = (routeData) => {
   const errors = {};
@@ -353,10 +522,10 @@ export const validateShippingRouteData = (routeData) => {
 };
 
 /**
- * حساب التكلفة بناءً على حجم الطرد
- * @param {Object} rates - أسعار الشحن (small, medium, large)
- * @param {String} packageSize - حجم الطرد
- * @returns {Number} - التكلفة
+ * Calculate cost by package size
+ * @param {Object} rates - Shipping rates (small, medium, large)
+ * @param {String} packageSize - Package size
+ * @returns {Number} Cost
  */
 export const calculateCostBySize = (rates, packageSize) => {
   const sizeMap = {
@@ -368,9 +537,9 @@ export const calculateCostBySize = (rates, packageSize) => {
 };
 
 /**
- * تنسيق عرض نوع المدينة
- * @param {String} type - نوع المدينة
- * @returns {String} - النوع بالعربي
+ * Format city type for display
+ * @param {String} type - City type
+ * @returns {String} Formatted type in Arabic
  */
 export const formatCityType = (type) => {
   const typeMap = {
@@ -382,47 +551,11 @@ export const formatCityType = (type) => {
   return typeMap[type] || type;
 };
 
-/**
- * فلترة المدن حسب الاسم (بحث)
- * @param {Array} cities - قائمة المدن
- * @param {String} searchTerm - كلمة البحث
- * @returns {Array} - المدن المفلترة
- */
-export const filterCitiesByName = (cities, searchTerm) => {
-  if (!searchTerm || searchTerm.trim() === "") return cities;
-  const term = searchTerm.toLowerCase().trim();
-  return cities.filter(
-    (city) =>
-      city.name.toLowerCase().includes(term) ||
-      city.nameEn.toLowerCase().includes(term) ||
-      city.region.toLowerCase().includes(term)
-  );
-};
+// ========== Constants ==========
 
 /**
- * ترتيب المدن حسب الأسبقية (العواصم أولاً، ثم المدن المقدسة، إلخ)
- * @param {Array} cities - قائمة المدن
- * @returns {Array} - المدن المرتبة
+ * City types
  */
-export const sortCitiesByPriority = (cities) => {
-  const priorityOrder = {
-    capital: 1,
-    holy_city: 2,
-    major_city: 3,
-    city: 4,
-  };
-
-  return [...cities].sort((a, b) => {
-    const priorityA = priorityOrder[a.type] || 999;
-    const priorityB = priorityOrder[b.type] || 999;
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-    return a.name.localeCompare(b.name, "ar");
-  });
-};
-
-// ثوابت أنواع المدن
 export const CITY_TYPES = [
   { value: "capital", label: "عاصمة", labelEn: "Capital" },
   { value: "holy_city", label: "مدينة مقدسة", labelEn: "Holy City" },
@@ -430,13 +563,16 @@ export const CITY_TYPES = [
   { value: "city", label: "مدينة", labelEn: "City" },
 ];
 
-// ثوابت أحجام الطرود
+/**
+ * Package sizes
+ */
 export const PACKAGE_SIZES = [
   { value: "small", label: "صغير", labelEn: "Small" },
   { value: "medium", label: "متوسط", labelEn: "Medium" },
   { value: "large", label: "كبير", labelEn: "Large" },
 ];
 
+// ========== Default Export (organized by feature) ==========
 export default {
   // CRUD Operations
   getAllCities,
@@ -450,16 +586,22 @@ export default {
   addOrUpdateShippingRoute,
   deleteShippingRoute,
 
-  // Filter & Search
+  // Batch Operations
+  batchCreateCities,
+  batchUpdateCities,
+  batchDeleteCities,
+
+  // Search & Filter
   getActiveCities,
   getCitiesByRegion,
   getCitiesByType,
+  searchCities,
   filterCitiesByName,
   sortCitiesByPriority,
 
   // Utilities
-  mapCityData,
   prepareCityPayload,
+  mapCityForDisplay,
   validateCityData,
   validateShippingRouteData,
   calculateCostBySize,
@@ -471,4 +613,8 @@ export default {
 
   // Auth
   setAuthToken,
+
+  // Data Transformation (for advanced usage)
+  transformCityData,
+  transformCitiesData,
 };

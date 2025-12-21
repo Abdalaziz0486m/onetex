@@ -1,10 +1,10 @@
 // src/services/driverService.js
 import axios from "axios";
 
-// تعيين الـ baseURL في axios
+// ========== Configuration ==========
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 
-// إعداد الـ token
+// ========== Authentication Management ==========
 const token = localStorage.getItem("token");
 if (token) {
   axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -12,7 +12,10 @@ if (token) {
   delete axios.defaults.headers.common["Authorization"];
 }
 
-// دالة لتحديث الـ token ديناميكيًا
+/**
+ * Update authentication token dynamically
+ * @param {String} token - JWT token
+ */
 export const setAuthToken = (token) => {
   if (token) {
     localStorage.setItem("token", token);
@@ -23,40 +26,103 @@ export const setAuthToken = (token) => {
   }
 };
 
-// ==================== الخدمات ====================
+// ========== Data Transformation Layer ==========
 
 /**
- * جلب جميع السائقين
- * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
- * @returns {Promise<Object>} - قائمة السائقين
+ * Transform driver data from API format to app format
+ * @param {Object} driver - Driver object from API
+ * @returns {Object|null} Transformed driver object
+ */
+const transformDriverData = (driver) => {
+  if (!driver) return null;
+
+  return {
+    id: driver._id || driver.id,
+    name: driver.name || "",
+    phone: driver.phone || "",
+    licenseNumber: driver.licenseNumber || "",
+    region: driver.region || "",
+    area: driver.Area || driver.area || "", // Handle both cases
+
+    // Shipments
+    shipments: driver.shipments || [],
+    shipmentsCount: driver._count?.shipments || driver.shipments?.length || 0,
+
+    // Statistics
+    completedShipments: driver.completedShipments || 0,
+    pendingShipments: driver.pendingShipments || 0,
+
+    // Status
+    isActive: driver.isActive ?? true,
+    isApproved: driver.isApproved ?? false,
+
+    createdAt: driver.createdAt,
+    updatedAt: driver.updatedAt,
+  };
+};
+
+/**
+ * Transform array of drivers from API format to app format
+ * @param {Array} drivers - Array of driver objects
+ * @returns {Array} Transformed drivers array
+ */
+const transformDriversData = (drivers) => {
+  if (!Array.isArray(drivers)) return [];
+  return drivers.map(transformDriverData);
+};
+
+// ========== CRUD Operations ==========
+
+/**
+ * Get all drivers with optional filters
+ * @param {Object} params - Query parameters (filters, pagination, etc.)
+ * @returns {Promise<Object>} Response with drivers list
  */
 export const getAllDrivers = async (params = {}) => {
   try {
     const response = await axios.get("/api/drivers", { params });
-    return response.data;
+
+    // Transform response data if exists
+    if (response.data?.success && response.data?.data) {
+      if (Array.isArray(response.data.data)) {
+        response.data.data = transformDriversData(response.data.data);
+      } else if (response.data.data.drivers) {
+        response.data.data.drivers = transformDriversData(
+          response.data.data.drivers
+        );
+      }
+    }
+
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب سائق معين بواسطة ID
- * @param {String} driverId - معرف السائق
- * @returns {Promise<Object>} - بيانات السائق
+ * Get driver by ID
+ * @param {String} driverId - Driver ID
+ * @returns {Promise<Object>} Response with driver data
  */
 export const getDriverById = async (driverId) => {
   try {
     const response = await axios.get(`/api/drivers/${driverId}`);
-    return response.data;
+
+    // Transform response data
+    if (response.data?.success && response.data?.data) {
+      response.data.data = transformDriverData(response.data.data);
+    }
+
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * إنشاء سائق جديد
- * @param {Object} driverData - بيانات السائق
- * @returns {Promise<Object>} - السائق المنشأ
+ * Create new driver
+ * @param {Object} driverData - Driver data
+ * @returns {Promise<Object>} Response with created driver
  */
 export const createDriver = async (driverData) => {
   try {
@@ -68,10 +134,10 @@ export const createDriver = async (driverData) => {
 };
 
 /**
- * تحديث سائق معين
- * @param {String} driverId - معرف السائق
- * @param {Object} driverData - البيانات المحدثة
- * @returns {Promise<Object>} - السائق المحدث
+ * Update existing driver
+ * @param {String} driverId - Driver ID
+ * @param {Object} driverData - Updated driver data
+ * @returns {Promise<Object>} Response with updated driver
  */
 export const updateDriver = async (driverId, driverData) => {
   try {
@@ -83,9 +149,9 @@ export const updateDriver = async (driverId, driverData) => {
 };
 
 /**
- * حذف سائق معين
- * @param {String} driverId - معرف السائق
- * @returns {Promise<Object>} - رسالة التأكيد
+ * Delete driver
+ * @param {String} driverId - Driver ID
+ * @returns {Promise<Object>} Response confirming deletion
  */
 export const deleteDriver = async (driverId) => {
   try {
@@ -96,10 +162,12 @@ export const deleteDriver = async (driverId) => {
   }
 };
 
+// ========== Driver Shipments Operations ==========
+
 /**
- * جلب الشحنات الخاصة بسائق معين
- * @param {String} driverId - معرف السائق
- * @returns {Promise<Object>} - قائمة الشحنات
+ * Get driver's shipments
+ * @param {String} driverId - Driver ID
+ * @returns {Promise<Object>} Response with driver's shipments
  */
 export const getDriverShipments = async (driverId) => {
   try {
@@ -110,58 +178,198 @@ export const getDriverShipments = async (driverId) => {
   }
 };
 
+// ========== Driver Approval Operations ==========
+
 /**
- * البحث عن السائقين بناءً على معايير معينة
- * @param {Object} filters - معايير البحث (name, phone, region, area, etc.)
- * @returns {Promise<Object>} - قائمة السائقين المفلترة
+ * Get pending drivers (not approved yet)
+ * @param {Object} params - Query parameters
+ * @returns {Promise<Object>} Response with pending drivers
+ */
+export const getPendingDrivers = async (params = {}) => {
+  try {
+    const response = await axios.get("/api/drivers/pending", { params });
+
+    // Transform response data
+    if (response.data?.success && response.data?.data) {
+      response.data.data = transformDriversData(response.data.data);
+    }
+
+    return response;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Get approved drivers
+ * @param {Object} params - Query parameters
+ * @returns {Promise<Object>} Response with approved drivers
+ */
+export const getApprovedDrivers = async (params = {}) => {
+  try {
+    const response = await axios.get("/api/drivers/approved", { params });
+
+    // Transform response data
+    if (response.data?.success && response.data?.data) {
+      response.data.data = transformDriversData(response.data.data);
+    }
+
+    return response;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Approve driver
+ * @param {String} driverId - Driver ID
+ * @returns {Promise<Object>} Response with approved driver
+ */
+export const approveDriver = async (driverId) => {
+  try {
+    const response = await axios.post(`/api/drivers/${driverId}/approve`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Reject driver
+ * @param {String} driverId - Driver ID
+ * @returns {Promise<Object>} Response confirming rejection
+ */
+export const rejectDriver = async (driverId) => {
+  try {
+    const response = await axios.post(`/api/drivers/${driverId}/reject`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// ========== Batch Operations ==========
+
+/**
+ * Create multiple drivers at once
+ * @param {Array} driversData - Array of driver objects
+ * @returns {Promise<Object>} Response with created drivers
+ */
+export const batchCreateDrivers = async (driversData) => {
+  try {
+    const response = await axios.post("/api/drivers/batch", {
+      drivers: driversData,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Update multiple drivers at once
+ * @param {Array} updates - Array of update objects with id and data
+ * @returns {Promise<Object>} Response with updated drivers
+ */
+export const batchUpdateDrivers = async (updates) => {
+  try {
+    const response = await axios.patch("/api/drivers/batch", { updates });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Delete multiple drivers at once
+ * @param {Array} driverIds - Array of driver IDs
+ * @returns {Promise<Object>} Response confirming deletion
+ */
+export const batchDeleteDrivers = async (driverIds) => {
+  try {
+    const response = await axios.post("/api/drivers/batch-delete", {
+      driverIds,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Batch approve drivers
+ * @param {Array} driverIds - Array of driver IDs
+ * @returns {Promise<Object>} Response with approved drivers
+ */
+export const batchApproveDrivers = async (driverIds) => {
+  try {
+    const response = await axios.post("/api/drivers/batch-approve", {
+      driverIds,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// ========== Search & Filter Operations ==========
+
+/**
+ * Search drivers by criteria
+ * @param {Object} filters - Search criteria (name, phone, region, area, etc.)
+ * @returns {Promise<Object>} Response with filtered drivers
  */
 export const searchDrivers = async (filters = {}) => {
   try {
     const response = await axios.get("/api/drivers/search", {
       params: filters,
     });
-    return response.data;
+
+    // Transform response data
+    if (response.data?.success && response.data?.data) {
+      response.data.data = transformDriversData(response.data.data);
+    }
+
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب السائقين حسب المنطقة
- * @param {String} region - اسم المنطقة
- * @returns {Promise<Object>} - قائمة السائقين
+ * Get drivers by region
+ * @param {String} region - Region name
+ * @returns {Promise<Object>} Response with filtered drivers
  */
 export const getDriversByRegion = async (region) => {
   try {
-    const response = await axios.get("/api/drivers", {
-      params: { region },
-    });
-    return response.data;
+    const response = await getAllDrivers({ region });
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
 /**
- * جلب السائقين حسب الحي
- * @param {String} area - اسم الحي
- * @returns {Promise<Object>} - قائمة السائقين
+ * Get drivers by area
+ * @param {String} area - Area name
+ * @returns {Promise<Object>} Response with filtered drivers
  */
 export const getDriversByArea = async (area) => {
   try {
-    const response = await axios.get("/api/drivers", {
-      params: { area },
-    });
-    return response.data;
+    const response = await getAllDrivers({ area });
+    return response;
   } catch (error) {
     throw error.response?.data || error.message;
   }
 };
 
+// ========== Statistics & Export Operations ==========
+
 /**
- * جلب إحصائيات السائقين
- * @param {Object} filters - فلاتر اختيارية
- * @returns {Promise<Object>} - إحصائيات السائقين
+ * Get drivers statistics
+ * @param {Object} filters - Optional filters
+ * @returns {Promise<Object>} Response with driver statistics
  */
 export const getDriversStatistics = async (filters = {}) => {
   try {
@@ -175,9 +383,9 @@ export const getDriversStatistics = async (filters = {}) => {
 };
 
 /**
- * تصدير السائقين إلى Excel
- * @param {Object} filters - فلاتر اختيارية
- * @returns {Promise<Blob>} - ملف Excel
+ * Export drivers to Excel
+ * @param {Object} filters - Optional filters
+ * @returns {Promise<Blob>} Excel file blob
  */
 export const exportDriversToExcel = async (filters = {}) => {
   try {
@@ -192,9 +400,9 @@ export const exportDriversToExcel = async (filters = {}) => {
 };
 
 /**
- * تصدير السائقين إلى PDF
- * @param {Object} filters - فلاتر اختيارية
- * @returns {Promise<Blob>} - ملف PDF
+ * Export drivers to PDF
+ * @param {Object} filters - Optional filters
+ * @returns {Promise<Blob>} PDF file blob
  */
 export const exportDriversToPDF = async (filters = {}) => {
   try {
@@ -208,28 +416,12 @@ export const exportDriversToPDF = async (filters = {}) => {
   }
 };
 
-/**
- * معالجة بيانات السائق من API إلى format مناسب للعرض
- * @param {Object} apiDriver - بيانات السائق من API
- * @returns {Object} - بيانات السائق المعالجة
- */
-export const mapDriverData = (apiDriver) => {
-  return {
-    id: apiDriver._id,
-    name: apiDriver.name,
-    phone: apiDriver.phone,
-    licenseNumber: apiDriver.licenseNumber,
-    region: apiDriver.region,
-    area: apiDriver.Area, // لاحظ الـ capital A
-    createdAt: apiDriver.createdAt,
-    updatedAt: apiDriver.updatedAt,
-  };
-};
+// ========== Utilities ==========
 
 /**
- * تجهيز بيانات السائق للإرسال إلى API
- * @param {Object} formData - بيانات النموذج
- * @returns {Object} - البيانات المجهزة للإرسال
+ * Prepare driver data for API submission
+ * @param {Object} formData - Form data from UI
+ * @returns {Object} Prepared payload for API
  */
 export const prepareDriverPayload = (formData) => {
   return {
@@ -237,14 +429,37 @@ export const prepareDriverPayload = (formData) => {
     phone: formData.phone.trim(),
     licenseNumber: formData.licenseNumber.trim(),
     region: formData.city?.apiValue || formData.region,
-    Area: formData.area?.apiValue || formData.Area, // لاحظ الـ capital A
+    Area: formData.area?.apiValue || formData.Area, // Capital A as per API
   };
 };
 
 /**
- * التحقق من صحة بيانات السائق
- * @param {Object} driverData - بيانات السائق
- * @returns {Object} - {isValid: boolean, errors: Object}
+ * Map driver data for display in UI
+ * @param {Object} apiDriver - Driver data from API
+ * @returns {Object} Mapped driver for UI display
+ */
+export const mapDriverForDisplay = (apiDriver) => {
+  return {
+    id: apiDriver._id || apiDriver.id,
+    name: apiDriver.name || "",
+    phone: apiDriver.phone || "",
+    licenseNumber: apiDriver.licenseNumber || "",
+    region: apiDriver.region || "",
+    area: apiDriver.Area || apiDriver.area || "",
+    shipmentsCount: apiDriver.shipmentsCount || 0,
+    completedShipments: apiDriver.completedShipments || 0,
+    pendingShipments: apiDriver.pendingShipments || 0,
+    isActive: apiDriver.isActive ?? true,
+    isApproved: apiDriver.isApproved ?? false,
+    createdAt: apiDriver.createdAt,
+    updatedAt: apiDriver.updatedAt,
+  };
+};
+
+/**
+ * Validate driver data before submission
+ * @param {Object} driverData - Driver data to validate
+ * @returns {Object} Validation result {isValid: boolean, errors: Object}
  */
 export const validateDriverData = (driverData) => {
   const errors = {};
@@ -275,13 +490,40 @@ export const validateDriverData = (driverData) => {
   };
 };
 
-// بيانات المدن والأحياء للاستخدام في النماذج
+/**
+ * Get city option from API value
+ * @param {String} apiValue - API value
+ * @returns {Object|null} City option
+ */
+export const getCityOptionFromApiValue = (apiValue) => {
+  return cities.find((city) => city.apiValue === apiValue) || null;
+};
+
+/**
+ * Get area option from API value
+ * @param {String} cityValue - City value
+ * @param {String} apiValue - API value
+ * @returns {Object|null} Area option
+ */
+export const getAreaOptionFromApiValue = (cityValue, apiValue) => {
+  if (!cityValue || !areas[cityValue]) return null;
+  return areas[cityValue].find((area) => area.apiValue === apiValue) || null;
+};
+
+// ========== Constants ==========
+
+/**
+ * Cities data for forms
+ */
 export const cities = [
   { value: "riyadh", label: "الرياض", apiValue: "Riyadh" },
   { value: "jeddah", label: "جدة", apiValue: "Jeddah" },
   { value: "dammam", label: "الدمام", apiValue: "Dammam" },
 ];
 
+/**
+ * Areas data by city for forms
+ */
 export const areas = {
   riyadh: [
     { value: "east", label: "الرياض الشرقية", apiValue: "East Riyadh" },
@@ -301,82 +543,7 @@ export const areas = {
   ],
 };
 
-/**
- * الحصول على خيارات المدينة من apiValue
- * @param {String} apiValue - القيمة من API
- * @returns {Object|null} - خيار المدينة
- */
-export const getCityOptionFromApiValue = (apiValue) => {
-  return cities.find((city) => city.apiValue === apiValue) || null;
-};
-
-/**
- * الحصول على خيارات الحي من apiValue
- * @param {String} cityValue - قيمة المدينة
- * @param {String} apiValue - القيمة من API
- * @returns {Object|null} - خيار الحي
- */
-export const getAreaOptionFromApiValue = (cityValue, apiValue) => {
-  if (!cityValue || !areas[cityValue]) return null;
-  return areas[cityValue].find((area) => area.apiValue === apiValue) || null;
-};
-
-/**
- * جلب السائقين المعلقين (غير الموافق عليهم)
- * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
- * @returns {Promise<Object>} - قائمة السائقين المعلقين
- */
-export const getPendingDrivers = async (params = {}) => {
-  try {
-    const response = await axios.get("/api/drivers/pending", { params });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
-};
-
-/**
- * جلب السائقين الموافق عليهم
- * @param {Object} params - معاملات الاستعلام (filters, pagination, etc.)
- * @returns {Promise<Object>} - قائمة السائقين الموافق عليهم
- */
-export const getApprovedDrivers = async (params = {}) => {
-  try {
-    const response = await axios.get("/api/drivers/approved", { params });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
-};
-
-/**
- * الموافقة على سائق
- * @param {String} driverId - معرف السائق
- * @returns {Promise<Object>} - بيانات السائق بعد الموافقة
- */
-export const approveDriver = async (driverId) => {
-  try {
-    const response = await axios.post(`/api/drivers/${driverId}/approve`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
-};
-
-/**
- * رفض سائق
- * @param {String} driverId - معرف السائق
- * @returns {Promise<Object>} - رسالة التأكيد
- */
-export const rejectDriver = async (driverId) => {
-  try {
-    const response = await axios.post(`/api/drivers/${driverId}/reject`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || error.message;
-  }
-};
-
+// ========== Default Export (organized by feature) ==========
 export default {
   // CRUD Operations
   getAllDrivers,
@@ -388,16 +555,22 @@ export default {
   // Driver Shipments
   getDriverShipments,
 
-  // Search & Filter
-  searchDrivers,
-  getDriversByRegion,
-  getDriversByArea,
-
-  // Driver Approval Management
+  // Driver Approval
   getPendingDrivers,
   getApprovedDrivers,
   approveDriver,
   rejectDriver,
+
+  // Batch Operations
+  batchCreateDrivers,
+  batchUpdateDrivers,
+  batchDeleteDrivers,
+  batchApproveDrivers,
+
+  // Search & Filter
+  searchDrivers,
+  getDriversByRegion,
+  getDriversByArea,
 
   // Statistics & Export
   getDriversStatistics,
@@ -405,8 +578,8 @@ export default {
   exportDriversToPDF,
 
   // Utilities
-  mapDriverData,
   prepareDriverPayload,
+  mapDriverForDisplay,
   validateDriverData,
   getCityOptionFromApiValue,
   getAreaOptionFromApiValue,
@@ -417,4 +590,8 @@ export default {
 
   // Auth
   setAuthToken,
+
+  // Data Transformation (for advanced usage)
+  transformDriverData,
+  transformDriversData,
 };
